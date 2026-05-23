@@ -15,6 +15,19 @@ type Post = {
   createdAt: number;
 };
 
+type ScenarioAction = {
+  type: string; // 'scroll_home' | 'search_and_pick_group' | 'scroll_current_page' | 'post_to_current_group'
+  durationSeconds?: number;
+  label: string;
+};
+
+type Scenario = {
+  id: string;
+  name: string;
+  actions: ScenarioAction[];
+  isActive: boolean; // only one can be active, or we randomly pick from actives
+};
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -51,6 +64,17 @@ export default function RealEstateAutoDashboard() {
   const [intervalMinutes, setIntervalMinutes] = useState(30);
   const [postsBeforeBreak, setPostsBeforeBreak] = useState(10);
   const [breakMinutes, setBreakMinutes] = useState(60);
+  const [scenarios, setScenarios] = useState<Scenario[]>([
+    {
+      id: 'default',
+      name: 'Mặc định (Tìm Group -> Đăng liền)',
+      actions: [
+        { type: 'search_and_pick_group', label: 'Tìm và chọn Group ngẫu nhiên' },
+        { type: 'post_to_current_group', label: 'Đăng bài vào Group' }
+      ],
+      isActive: true
+    }
+  ]);
   const [isMounted, setIsMounted] = useState(false);
   
   // Engine State
@@ -60,18 +84,22 @@ export default function RealEstateAutoDashboard() {
 
   // Load state from local storage on mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
     const savedPosts = localStorage.getItem('re_posts');
     const savedKey = localStorage.getItem('re_keywords');
+    const savedScenarios = localStorage.getItem('re_scenarios');
     if (savedPosts) setPosts(JSON.parse(savedPosts));
     if (savedKey) setKeywords(savedKey);
+    if (savedScenarios) setScenarios(JSON.parse(savedScenarios));
   }, []);
 
   // Save state
   useEffect(() => {
     localStorage.setItem('re_posts', JSON.stringify(posts));
     localStorage.setItem('re_keywords', keywords);
-  }, [posts, keywords]);
+    localStorage.setItem('re_scenarios', JSON.stringify(scenarios));
+  }, [posts, keywords, scenarios]);
 
   const addPost = (content: string, images: string[] = []) => {
     const newPost = { id: Date.now().toString(), content, images, createdAt: Date.now() };
@@ -104,18 +132,20 @@ export default function RealEstateAutoDashboard() {
     
     if (isRunning) {
       if (logs.length === 0 || logs[logs.length-1].includes('Trạng thái chờ')) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Bắt đầu chiến dịch tự động đăng bài.`]);
       }
       
       // Nếu chạy trên Electron (App Desktop), gọi Backend Node.js thực thi thật
       if (typeof window !== 'undefined' && window.electronAPI) {
-         window.electronAPI.startAutomation({
-            keywords,
-            posts,
-            intervalMinutes,
-            postsBeforeBreak,
-            breakMinutes
-         }).then(res => {
+          window.electronAPI.startAutomation({
+             keywords,
+             posts,
+             intervalMinutes,
+             postsBeforeBreak,
+             breakMinutes,
+             scenarios: scenarios.filter(s => s.isActive)
+          }).then(res => {
             if (!res.success) {
                setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
             } else {
@@ -163,6 +193,7 @@ export default function RealEstateAutoDashboard() {
     return () => {
       if (tickInterval) clearInterval(tickInterval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning]); // Chỉ phụ thuộc vào isRunning, tránh stale state và vòng lặp vô tận
 
 
@@ -228,6 +259,8 @@ export default function RealEstateAutoDashboard() {
               setPostsBeforeBreak={setPostsBeforeBreak}
               breakMinutes={breakMinutes}
               setBreakMinutes={setBreakMinutes}
+              scenarios={scenarios}
+              setScenarios={setScenarios}
               isRunning={isRunning}
               setIsRunning={setIsRunning}
               logs={logs}
@@ -325,6 +358,7 @@ function PostsView({ posts, addPost, deletePost, editPost }: { posts: Post[], ad
           <div className="flex flex-wrap gap-2">
             {images.map((img, idx) => (
                <div key={idx} className="relative w-14 h-14 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden shadow-sm">
+                 {/* eslint-disable-next-line @next/next/no-img-element */}
                  <img src={img} alt="upload" className="object-cover w-full h-full" />
                  <button onClick={() => setImages(images.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-600"><Trash2 className="w-3 h-3"/></button>
                </div>
@@ -377,6 +411,7 @@ function PostsView({ posts, addPost, deletePost, editPost }: { posts: Post[], ad
                   <div className="h-24 bg-gray-100 flex overflow-hidden border-t border-gray-200">
                      {post.images.map((img, i) => (
                        <div key={i} className="flex-1 border-r border-white last:border-0 relative group">
+                         {/* eslint-disable-next-line @next/next/no-img-element */}
                          <img src={img} alt="Post image" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                        </div>
                      ))}
@@ -489,13 +524,55 @@ function BotIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, isRunning, setIsRunning, logs }: any) {
+function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, logs }: any) {
   
   const endLogRef = useRef<HTMLDivElement>(null);
+  const [scenarioPrompt, setScenarioPrompt] = useState("");
+  const [isGeneratingScenario, setIsGeneratingScenario] = useState(false);
 
   useEffect(() => {
     endLogRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
+
+  const handleGenerateScenario = async () => {
+    if (!scenarioPrompt.trim()) return;
+    setIsGeneratingScenario(true);
+    try {
+      const res = await fetch('/api/gemini/scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: scenarioPrompt })
+      });
+      const data = await res.json();
+      if (data.actions && Array.isArray(data.actions)) {
+        const newScenario = {
+          id: Date.now().toString(),
+          name: 'Kịch bản AI ' + new Date().toLocaleTimeString(),
+          actions: data.actions,
+          isActive: false
+        };
+        setScenarios([newScenario, ...scenarios.map((s: any) => ({ ...s, isActive: false }))]);
+        newScenario.isActive = true; // active by default
+        setScenarioPrompt("");
+        alert("Đã tạo kịch bản thành công!");
+      } else {
+        alert(data.error || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến server.');
+    } finally {
+      setIsGeneratingScenario(false);
+    }
+  };
+
+  const toggleScenario = (id: string) => {
+    setScenarios(scenarios.map((s: any) => ({ ...s, isActive: s.id === id })));
+  };
+
+  const deleteScenario = (id: string) => {
+    setScenarios(scenarios.filter((s: any) => s.id !== id));
+  };
 
   return (
     <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
@@ -524,7 +601,54 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Khoảng nghỉ giữa 2 bài đăng liên tục</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Kịch bản tương tác (AI Tạo)</label>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input 
+                   type="text"
+                   disabled={isRunning || isGeneratingScenario}
+                   placeholder="VD: Lướt FB 2 phút, sau đó vào search group đăng bài..."
+                   className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                   value={scenarioPrompt}
+                   onChange={e => setScenarioPrompt(e.target.value)}
+                />
+                <button 
+                   disabled={isRunning || isGeneratingScenario || !scenarioPrompt.trim()}
+                   onClick={handleGenerateScenario}
+                   className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isGeneratingScenario ? 'Đang tạo...' : <><Sparkles className="w-4 h-4" /> AI Tạo</>}
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {scenarios.map((s: any) => (
+                  <div key={s.id} className={`p-3 rounded-lg border text-sm transition-colors cursor-pointer flex flex-col gap-2 ${s.isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-blue-300'}`} onClick={() => !isRunning && toggleScenario(s.id)}>
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-gray-900">{s.name}</span>
+                      {!isRunning && s.id !== 'default' && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteScenario(s.id); }}
+                          className="text-red-500 p-1 hover:bg-red-100 rounded"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {s.isActive && <CheckCircle2 className="w-4 h-4 text-blue-500" />}
+                    </div>
+                    <ul className="list-disc list-inside text-gray-600 text-[11px] space-y-1">
+                      {s.actions.map((act: any, idx: number) => (
+                        <li key={idx} className="line-clamp-1">{act.label || act.type} {act.durationSeconds ? `(${act.durationSeconds}s)` : ''}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Khoảng nghỉ giữa 2 chu kỳ kịch bản</label>
             <div className="relative">
               <input 
                  type="number"
