@@ -25,7 +25,7 @@ async function runAutomation(config, logCallback) {
     // Mở Tab mới
     const page = await browser.newPage();
 
-    const post = posts && posts.length > 0 ? posts[0] : null;
+    const post = posts && posts.length > 0 ? posts[Math.floor(Math.random() * posts.length)] : null;
     if (!post) {
        logCallback(`[LỖI] Bạn chưa chọn bài viết nào để đăng!`);
        await browser.disconnect();
@@ -65,9 +65,10 @@ async function runAutomation(config, logCallback) {
       return;
     }
 
-    logCallback(`[HỆ THỐNG] Tìm thấy ${groupLinks.length} nhóm. Sẽ bắt đầu vào nhóm đầu tiên: ${groupLinks[0]}`);
+    const randomGroup = groupLinks[Math.floor(Math.random() * groupLinks.length)];
+    logCallback(`[HỆ THỐNG] Tìm thấy ${groupLinks.length} nhóm. Sẽ chọn ngẫu nhiên một nhóm: ${randomGroup}`);
     
-    await page.goto(groupLinks[0], { waitUntil: 'networkidle2' });
+    await page.goto(randomGroup, { waitUntil: 'networkidle2' });
     logCallback(`[CHỜ] Đợi truy cập vào Group...`);
     await new Promise(r => setTimeout(r, 5000));
 
@@ -209,7 +210,10 @@ async function runAutomation(config, logCallback) {
        logCallback(`[CẢNH BÁO] Không thấy chỗ "Viết gì đó". Bạn CHƯA THAM GIA nhóm này hoặc bị cấm đăng.`);
     }
 
-    logCallback(`[HỆ THỐNG] Kịch bản bot cho 1 nhóm đã kết thúc.`);
+    logCallback(`[HỆ THỐNG] Kịch bản bot cho 1 nhóm đã kết thúc. Đang dọn dẹp tab...`);
+    try {
+      await page.close();
+    } catch(e) {}
     await browser.disconnect();
     
     // Check if we should stop
