@@ -276,62 +276,62 @@ function PostsView({ posts, addPost, deletePost }: { posts: Post[], addPost: (c:
       </header>
 
       {/* Add New */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm shrink-0">
-        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-blue-500"/> Tạo bài đăng thủ công</h3>
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
+        <h3 className="font-semibold text-base mb-3 flex items-center gap-2"><Plus className="w-4 h-4 text-blue-500"/> Tạo bài đăng thủ công</h3>
         <textarea 
           placeholder="Nội dung bài đăng bán/cho thuê nhà đất..."
-          className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none mb-4"
+          className="w-full h-20 p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none mb-3"
           value={content}
           onChange={e => setContent(e.target.value)}
         />
         
-        <div className="flex flex-wrap gap-2 mb-4">
-          {images.map((img, idx) => (
-             <div key={idx} className="relative w-20 h-20 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden shadow-sm">
-               <img src={img} alt="upload" className="object-cover w-full h-full" />
-               <button onClick={() => setImages(images.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs shadow hover:bg-red-600"><Trash2 className="w-3 h-3"/></button>
-             </div>
-          ))}
-          {images.length < 3 && (
-            <label className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-blue-400 transition-colors">
-              <ImageIcon className="w-6 h-6 text-gray-400 mb-1" />
-              <span className="text-[10px] text-gray-500 font-medium">Thêm ảnh</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-            </label>
-          )}
-        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {images.map((img, idx) => (
+               <div key={idx} className="relative w-14 h-14 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden shadow-sm">
+                 <img src={img} alt="upload" className="object-cover w-full h-full" />
+                 <button onClick={() => setImages(images.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-600"><Trash2 className="w-3 h-3"/></button>
+               </div>
+            ))}
+            {images.length < 3 && (
+              <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-blue-400 transition-colors">
+                <ImageIcon className="w-4 h-4 text-gray-400 mb-0.5" />
+                <span className="text-[9px] text-gray-500 font-medium">Thêm ảnh</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
+            )}
+          </div>
 
-        <div className="flex justify-end">
-          <button onClick={handleSave} className="bg-slate-900 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center gap-2">
+          <button onClick={handleSave} className="bg-slate-900 text-white px-4 py-2 text-sm rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center gap-2">
             Lưu bài viết
           </button>
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex-1 overflow-y-auto pb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {posts.length === 0 ? (
-            <div className="col-span-1 md:col-span-2 text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl text-gray-500 flex flex-col items-center">
-              <FileText className="w-12 h-12 text-gray-200 mb-3" />
-              <p>Chưa có bài đăng nào.</p>
-              <p className="text-sm mt-1">Hãy tạo bài đăng mới ở trên hoặc qua tab AI.</p>
+            <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-center py-12 bg-white border border-dashed border-gray-300 rounded-xl text-gray-500 flex flex-col items-center">
+              <FileText className="w-10 h-10 text-gray-200 mb-3" />
+              <p className="text-sm font-medium">Chưa có bài đăng nào.</p>
+              <p className="text-xs mt-1">Hãy tạo bài đăng mới ở trên hoặc qua tab AI.</p>
             </div>
           ) : (
             posts.map(post => (
               <div key={post.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col hover:border-blue-300 transition-colors">
-                <div className="p-5 flex-1">
-                  <div className="flex items-center justify-between mb-3 text-xs text-gray-400">
-                    <span className="flex items-center gap-1 font-medium"><Clock className="w-4 h-4"/> {new Date(post.createdAt).toLocaleDateString()}</span>
-                    <button onClick={() => deletePost(post.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"><Trash2 className="w-4 h-4" /></button>
+                <div className="p-4 flex-1">
+                  <div className="flex items-center justify-between mb-2 text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1 font-medium"><Clock className="w-3 h-3"/> {new Date(post.createdAt).toLocaleDateString()}</span>
+                    <button onClick={() => deletePost(post.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{post.content.length > 250 ? post.content.substring(0, 250) + '...' : post.content}</div>
+                  <div className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-6">{post.content}</div>
                 </div>
                 {post.images.length > 0 && (
-                  <div className="h-32 bg-gray-100 flex overflow-hidden border-t border-gray-100">
+                  <div className="h-24 bg-gray-100 flex overflow-hidden border-t border-gray-200">
                      {post.images.map((img, i) => (
                        <div key={i} className="flex-1 border-r border-white last:border-0 relative group">
-                         <img src={img} alt="Post image" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                         <img src={img} alt="Post image" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                        </div>
                      ))}
                   </div>
