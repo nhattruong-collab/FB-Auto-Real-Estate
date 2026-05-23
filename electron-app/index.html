@@ -26,12 +26,12 @@
 
   <div class="instructions">
     <strong>⚠️ LƯU Ý QUAN TRỌNG ĐỂ VƯỢT QUA CHECKPOINT FACEBOOK:</strong><br>
-    Ứng dụng cơ chế "Puppeteer-Core" để lái chính trình duyệt Chrome của bạn (đã đăng nhập sẵn Facebook) để đảm bảo không bị khóa account do login từ IP/Browser lạ.
-    <br><br>
-    <strong>Bước 1:</strong> Tắt hoàn toàn tất cả cửa sổ Google Chrome hiện tại.<br>
-    <strong>Bước 2:</strong> Nhấn tổ hợp phím <code>Windows + R</code>, dán đoạn lệnh này vào và ấn Enter: 
-    <br><code style="background: white; padding: 2px 4px; border: 1px solid #ccc;">chrome.exe --remote-debugging-port=9222</code>
-    <br><strong>Bước 3:</strong> Quay lại đây và nhấn Bắt đầu chạy.
+    Ứng dụng hiển thị Terminal Automation bằng Puppeteer-Core, điều khiển chính Chrome của bạn để không bị checkpoint.<br><br>
+    <strong>Bước 1:</strong> Mở hộp thoại Run (nhấn tổ hợp phím <code>Windows + R</code>)<br>
+    <strong>Bước 2:</strong> Dán đoạn lệnh dưới đây vào và ấn Enter để mở Chrome ở chế độ gỡ lỗi (điều khiển từ xa): 
+    <br><code style="background: white; padding: 2px 4px; border: 1px solid #ccc; display: block; margin: 8px 0; word-break: break-all;">chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\chrome-dev-fb"</code>
+    <strong>Bước 3:</strong> Trong cửa sổ Chrome vừa mở (mới tinh), hãy <strong>Đăng nhập lại vào Facebook</strong>.<br>
+    <strong>Bước 4:</strong> Quay lại ứng dụng này và nhấn chọn <strong>BẮT ĐẦU CHẠY AUTO</strong>.
   </div>
 
   <div class="card">
