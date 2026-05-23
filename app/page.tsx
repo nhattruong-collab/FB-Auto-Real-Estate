@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, FileText, Sparkles, Send, Play, Square, 
   Trash2, Plus, Image as ImageIcon, CheckCircle2,
-  Clock, Activity, Facebook, Settings, Search
+  Clock, Activity, Facebook, Settings, Search, Pencil
 } from 'lucide-react';
 
 // --- Types & Globals ---
@@ -78,6 +78,10 @@ export default function RealEstateAutoDashboard() {
 
   const deletePost = (id: string) => {
     setPosts(posts.filter(p => p.id !== id));
+  };
+
+  const editPost = (id: string, content: string, images: string[]) => {
+    setPosts(posts.map(p => p.id === id ? { ...p, content, images } : p));
   };
 
   // Set up Electron IPC listeners if running in Desktop App
@@ -207,7 +211,7 @@ export default function RealEstateAutoDashboard() {
       {/* Main Content */}
       <main className="flex-1 overflow-auto bg-slate-100/50">
         <div className="p-4 md:p-8 max-w-6xl mx-auto h-full">
-          {activeTab === 'posts' && <PostsView posts={posts} addPost={addPost} deletePost={deletePost} />}
+          {activeTab === 'posts' && <PostsView posts={posts} addPost={addPost} deletePost={deletePost} editPost={editPost} />}
           {activeTab === 'ai' && <AIGeneratorView onSave={addPost} />}
           {activeTab === 'automation' && (
             <AutomationView 
@@ -229,9 +233,10 @@ export default function RealEstateAutoDashboard() {
 
 // --- Sub Views ---
 
-function PostsView({ posts, addPost, deletePost }: { posts: Post[], addPost: (c: string, i: string[]) => void, deletePost: (id: string) => void }) {
+function PostsView({ posts, addPost, deletePost, editPost }: { posts: Post[], addPost: (c: string, i: string[]) => void, deletePost: (id: string) => void, editPost: (id: string, c: string, i: string[]) => void }) {
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
   
   // Resize image before storing to save localStorage quota
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,8 +267,28 @@ function PostsView({ posts, addPost, deletePost }: { posts: Post[], addPost: (c:
   };
 
   const handleSave = () => {
-    if (!content.trim()) return;
-    addPost(content, images);
+    if (!content.trim() && images.length === 0) return;
+    
+    if (editingPostId) {
+      editPost(editingPostId, content, images);
+      setEditingPostId(null);
+    } else {
+      addPost(content, images);
+    }
+    
+    setContent('');
+    setImages([]);
+  };
+
+  const handleEdit = (post: Post) => {
+    setContent(post.content);
+    setImages(post.images);
+    setEditingPostId(post.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingPostId(null);
     setContent('');
     setImages([]);
   };
@@ -277,7 +302,10 @@ function PostsView({ posts, addPost, deletePost }: { posts: Post[], addPost: (c:
 
       {/* Add New */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
-        <h3 className="font-semibold text-base mb-3 flex items-center gap-2"><Plus className="w-4 h-4 text-blue-500"/> Tạo bài đăng thủ công</h3>
+        <h3 className="font-semibold text-base mb-3 flex items-center gap-2">
+          {editingPostId ? <Pencil className="w-4 h-4 text-blue-500"/> : <Plus className="w-4 h-4 text-blue-500"/>} 
+          {editingPostId ? 'Sửa bài đăng' : 'Tạo bài đăng thủ công'}
+        </h3>
         <textarea 
           placeholder="Nội dung bài đăng bán/cho thuê nhà đất..."
           className="w-full h-20 p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none mb-3"
@@ -302,9 +330,16 @@ function PostsView({ posts, addPost, deletePost }: { posts: Post[], addPost: (c:
             )}
           </div>
 
-          <button onClick={handleSave} className="bg-slate-900 text-white px-4 py-2 text-sm rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center gap-2">
-            Lưu bài viết
-          </button>
+          <div className="flex gap-2">
+            {editingPostId && (
+              <button onClick={handleCancelEdit} className="bg-gray-200 text-gray-700 px-4 py-2 text-sm rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                Hủy
+              </button>
+            )}
+            <button onClick={handleSave} className="bg-slate-900 text-white px-4 py-2 text-sm rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center gap-2">
+              {editingPostId ? 'Cập nhật' : 'Lưu bài viết'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -323,7 +358,10 @@ function PostsView({ posts, addPost, deletePost }: { posts: Post[], addPost: (c:
                 <div className="p-4 flex-1">
                   <div className="flex items-center justify-between mb-2 text-[11px] text-gray-400">
                     <span className="flex items-center gap-1 font-medium"><Clock className="w-3 h-3"/> {new Date(post.createdAt).toLocaleDateString()}</span>
-                    <button onClick={() => deletePost(post.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleEdit(post)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-md transition-colors" title="Sửa bài"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => deletePost(post.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors" title="Xóa bài"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-6">{post.content}</div>
                 </div>
