@@ -1,7 +1,11 @@
 const puppeteer = require('puppeteer-core');
 
+// Create a global state to allow stopping
+let shouldStop = false;
+
 async function runAutomation(config, logCallback) {
   const { keywords, posts, intervalMinutes } = config;
+  shouldStop = false;
   
   logCallback(`[HỆ THỐNG] Chuẩn bị bộ máy tự động hóa...`);
   logCallback(`[HỆ THỐNG] Đang kết nối với Google Chrome của bạn để dùng tài khoản FB hiện tại...`);
@@ -113,8 +117,33 @@ async function runAutomation(config, logCallback) {
                   imagePaths.push(tmpPath);
                }
                
+               // Bấm vào nút Thêm Ảnh/Video trong Dialog trước nếu cần
+               const clickedPhotoBtn = await page.evaluate(() => {
+                 const dialog = document.querySelector('div[role="dialog"]');
+                 if(!dialog) return false;
+                 // Tìm nút Ảnh/Video
+                 const btns = Array.from(dialog.querySelectorAll('div[role="button"]'));
+                 for (let btn of btns) {
+                   const ariaLabel = btn.getAttribute('aria-label') || '';
+                   if (ariaLabel.includes('Ảnh/video') || ariaLabel.includes('Photo/video') || ariaLabel.includes('Ảnh')) {
+                     btn.click();
+                     return true;
+                   }
+                 }
+                 return false;
+               });
+               
+               if(clickedPhotoBtn) {
+                   logCallback(`[HÀNH ĐỘNG] Đã mở khu vực tải ảnh lên. Chờ 2s...`);
+                   await new Promise(r => setTimeout(r, 2000));
+               }
+
                logCallback(`[HÀNH ĐỘNG] Đẩy ảnh vào trình duyệt...`);
-               const fileInputs = await page.$$('input[type="file"]');
+               let fileInputs = await page.$$('div[role="dialog"] input[type="file"]');
+               if (fileInputs.length === 0) {
+                 fileInputs = await page.$$('input[type="file"][accept*="image"]');
+               }
+               
                let uploaded = false;
                for (let fileInput of fileInputs) {
                   const accept = await page.evaluate(el => el.getAttribute('accept') || '', fileInput);
@@ -165,10 +194,32 @@ async function runAutomation(config, logCallback) {
        logCallback(`[CẢNH BÁO] Không thấy chỗ "Viết gì đó". Bạn CHƯA THAM GIA nhóm này hoặc bị cấm đăng.`);
     }
 
-    logCallback(`[HỆ THỐNG] Kịch bản bot cho 1 nhóm đã kết thúc. Theo cài đặt sẽ lặp sau ${intervalMinutes} phút.`);
-    
+    logCallback(`[HỆ THỐNG] Kịch bản bot cho 1 nhóm đã kết thúc.`);
     await browser.disconnect();
-    logCallback(`[HỆ THỐNG] Đã ngắt kết nối với Chrome an toàn.`);
+    
+    // Check if we should stop
+    if (shouldStop) {
+       logCallback(`[HỆ THỐNG] Đã nhận lệnh Dừng. Dừng auto.`);
+       return;
+    }
+
+    logCallback(`[CHỜ] Đang đợi ${intervalMinutes} phút trước khi chạy nhóm tiếp theo...`);
+    
+    // Wait for interval, checking every second if shouldStop becomes true
+    let elapsed = 0;
+    const totalMs = intervalMinutes * 60 * 1000;
+    while (elapsed < totalMs) {
+      if (shouldStop) {
+         logCallback(`[HỆ THỐNG] Đã hủy thời gian chờ. Dừng auto.`);
+         return;
+      }
+      await new Promise(r => setTimeout(r, 1000));
+      elapsed += 1000;
+    }
+
+    // Lặp lại bằng việc gọi đệ quy (hoặc let's just make it a loop in main or front, but here is fine since it's an async fn)
+    logCallback(`[HỆ THỐNG] Hết thời gian chờ, bắt đầu vòng lặp mới!`);
+    await runAutomation(config, logCallback);
     
   } catch (error) {
     if (error.message.includes('fetch') || error.message.includes('ECONNREFUSED')) {
@@ -189,4 +240,7 @@ async function runAutomation(config, logCallback) {
   }
 }
 
-module.exports = { runAutomation };
+module.exports = { 
+  runAutomation,
+  stopAutomation: () => { shouldStop = true; }
+};

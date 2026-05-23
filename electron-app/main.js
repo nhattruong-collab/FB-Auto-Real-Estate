@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { runAutomation } = require('./automation');
+const { runAutomation, stopAutomation } = require('./automation');
 
 let mainWindow;
 
@@ -46,4 +46,8 @@ ipcMain.handle('start-automation', async (event, config) => {
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.on('stop-automation', () => {
+  stopAutomation();
 });

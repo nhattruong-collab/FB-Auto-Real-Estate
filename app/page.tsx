@@ -80,6 +80,15 @@ export default function RealEstateAutoDashboard() {
     setPosts(posts.filter(p => p.id !== id));
   };
 
+  // Set up Electron IPC listeners if running in Desktop App
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.onLog((msg: string) => {
+        setLogs(prev => [...prev, msg]);
+      });
+    }
+  }, []);
+
   const stepIndexRef = useRef(0);
   const countdownRef = useRef(0);
 
@@ -102,7 +111,7 @@ export default function RealEstateAutoDashboard() {
             if (!res.success) {
                setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
             } else {
-               setLogs((prev) => [...prev, `[HỆ THỐNG] Đã chạy xong 1 vòng lặp.`]);
+               setLogs((prev) => [...prev, `[HỆ THỐNG] Tiến trình bot đã dừng hoàn toàn.`]);
             }
             setIsRunning(false);
          });
@@ -135,7 +144,10 @@ export default function RealEstateAutoDashboard() {
       }
 
     } else {
-      if (logs.length > 0 && !logs[logs.length-1].includes('Trạng thái chờ')) {
+      if (typeof window !== 'undefined' && window.electronAPI) {
+         window.electronAPI.stopAutomation?.();
+      }
+      if (logs.length > 0 && !logs[logs.length-1].includes('Trạng thái chờ') && !logs[logs.length-1].includes('dừng hoàn toàn')) {
          setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HỆ THỐNG] Đã dừng. Trạng thái chờ khởi động.`]);
       }
     }
