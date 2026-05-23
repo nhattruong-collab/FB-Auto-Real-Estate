@@ -3,8 +3,8 @@ const puppeteer = require('puppeteer-core');
 // Create a global state to allow stopping
 let shouldStop = false;
 
-async function runAutomation(config, logCallback) {
-  const { keywords, posts, intervalMinutes } = config;
+async function runAutomation(config, logCallback, postCount = 0) {
+  const { keywords, posts, intervalMinutes, postsBeforeBreak = 10, breakMinutes = 30 } = config;
   shouldStop = false;
   
   logCallback(`[HỆ THỐNG] Chuẩn bị bộ máy tự động hóa...`);
@@ -222,23 +222,37 @@ async function runAutomation(config, logCallback) {
        return;
     }
 
-    logCallback(`[CHỜ] Đang đợi ${intervalMinutes} phút trước khi chạy nhóm tiếp theo...`);
-    
-    // Wait for interval, checking every second if shouldStop becomes true
-    let elapsed = 0;
-    const totalMs = intervalMinutes * 60 * 1000;
-    while (elapsed < totalMs) {
-      if (shouldStop) {
-         logCallback(`[HỆ THỐNG] Đã hủy thời gian chờ. Dừng auto.`);
-         return;
-      }
-      await new Promise(r => setTimeout(r, 1000));
-      elapsed += 1000;
+    postCount++;
+    if (postCount >= postsBeforeBreak) {
+       logCallback(`[CHỜ] Đã chạy xong ${postCount}/${postsBeforeBreak} bài. Bắt đầu NGHỈ DÀI ${breakMinutes} phút theo cấu hình...`);
+       let elapsed = 0;
+       const totalMs = breakMinutes * 60 * 1000;
+       while (elapsed < totalMs) {
+         if (shouldStop) {
+            logCallback(`[HỆ THỐNG] Đã hủy thời gian chờ nghỉ dài. Dừng auto.`);
+            return;
+         }
+         await new Promise(r => setTimeout(r, 1000));
+         elapsed += 1000;
+       }
+       postCount = 0; // reset
+    } else {
+       logCallback(`[CHỜ] Đã chạy xong ${postCount}/${postsBeforeBreak} bài. Đang đợi ${intervalMinutes} phút trước khi đăng nhóm tiếp theo...`);
+       let elapsed = 0;
+       const totalMs = intervalMinutes * 60 * 1000;
+       while (elapsed < totalMs) {
+         if (shouldStop) {
+            logCallback(`[HỆ THỐNG] Đã hủy thời gian chờ. Dừng auto.`);
+            return;
+         }
+         await new Promise(r => setTimeout(r, 1000));
+         elapsed += 1000;
+       }
     }
 
     // Lặp lại bằng việc gọi đệ quy (hoặc let's just make it a loop in main or front, but here is fine since it's an async fn)
     logCallback(`[HỆ THỐNG] Hết thời gian chờ, bắt đầu vòng lặp mới!`);
-    await runAutomation(config, logCallback);
+    await runAutomation(config, logCallback, postCount);
     
   } catch (error) {
     if (error.message.includes('fetch') || error.message.includes('ECONNREFUSED')) {

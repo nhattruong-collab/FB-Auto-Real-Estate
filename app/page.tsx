@@ -49,6 +49,8 @@ export default function RealEstateAutoDashboard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [keywords, setKeywords] = useState('Bất động sản Hà Nội, Mua bán nhà đất');
   const [intervalMinutes, setIntervalMinutes] = useState(30);
+  const [postsBeforeBreak, setPostsBeforeBreak] = useState(10);
+  const [breakMinutes, setBreakMinutes] = useState(60);
   const [isMounted, setIsMounted] = useState(false);
   
   // Engine State
@@ -110,7 +112,9 @@ export default function RealEstateAutoDashboard() {
          window.electronAPI.startAutomation({
             keywords,
             posts,
-            intervalMinutes
+            intervalMinutes,
+            postsBeforeBreak,
+            breakMinutes
          }).then(res => {
             if (!res.success) {
                setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
@@ -220,6 +224,10 @@ export default function RealEstateAutoDashboard() {
               setKeywords={setKeywords}
               intervalMinutes={intervalMinutes}
               setIntervalMinutes={setIntervalMinutes}
+              postsBeforeBreak={postsBeforeBreak}
+              setPostsBeforeBreak={setPostsBeforeBreak}
+              breakMinutes={breakMinutes}
+              setBreakMinutes={setBreakMinutes}
               isRunning={isRunning}
               setIsRunning={setIsRunning}
               logs={logs}
@@ -481,7 +489,7 @@ function BotIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, isRunning, setIsRunning, logs }: any) {
+function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, isRunning, setIsRunning, logs }: any) {
   
   const endLogRef = useRef<HTMLDivElement>(null);
 
@@ -516,7 +524,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Khoảng nghỉ giữa các nhóm</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Khoảng nghỉ giữa 2 bài đăng liên tục</label>
             <div className="relative">
               <input 
                  type="number"
@@ -527,6 +535,37 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
                  onChange={e => setIntervalMinutes(Number(e.target.value))}
               />
               <span className="absolute right-4 top-2.5 text-gray-500 pointer-events-none">phút</span>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Đăng số lượng bài</label>
+              <div className="relative">
+                <input 
+                   type="number"
+                   min="1"
+                   disabled={isRunning}
+                   className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
+                   value={postsBeforeBreak || ''}
+                   onChange={e => setPostsBeforeBreak(Number(e.target.value))}
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Thì nghỉ dài</label>
+              <div className="relative">
+                <input 
+                   type="number"
+                   min="1"
+                   disabled={isRunning}
+                   className="w-full px-4 pr-14 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
+                   value={breakMinutes || ''}
+                   onChange={e => setBreakMinutes(Number(e.target.value))}
+                />
+                <span className="absolute right-3 top-2.5 text-gray-500 pointer-events-none text-sm">phút</span>
+              </div>
             </div>
           </div>
 
