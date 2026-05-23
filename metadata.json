@@ -1,0 +1,6 @@
+{
+  "name": "FB Auto Real Estate",
+  "description": "Quản lý và tự động hóa đăng tin bán bất động sản lên các nhóm Facebook",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
