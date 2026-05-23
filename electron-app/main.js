@@ -6,8 +6,8 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 1200,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -15,7 +15,11 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile('index.html');
+  // Tải giao diện Next.js chạy ở localhost:3000 thay vì file html
+  mainWindow.loadURL('http://localhost:3000');
+  
+  // Mở DevTools để bạn dễ debug nếu cần
+  // mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
@@ -29,7 +33,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Xử lý lệnh từ Giao diện (Frontend) gọi xuống System (Backend)
+// Xử lý lệnh từ Giao diện Next.js (Frontend) gọi xuống System (Backend)
 ipcMain.handle('start-automation', async (event, config) => {
   try {
     await runAutomation(config, (logMessage) => {

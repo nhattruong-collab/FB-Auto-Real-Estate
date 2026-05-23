@@ -7,7 +7,7 @@ import {
   Clock, Activity, Facebook, Settings, Search
 } from 'lucide-react';
 
-// --- Types ---
+// --- Types & Globals ---
 type Post = {
   id: string;
   content: string;
@@ -15,11 +15,21 @@ type Post = {
   createdAt: number;
 };
 
-// --- Mock Automation Engine Logs ---
+declare global {
+  interface Window {
+    electronAPI?: {
+      startAutomation: (config: any) => Promise<{success: boolean, error?: string}>;
+      onLog: (callback: (msg: string) => void) => void;
+      stopAutomation?: () => void;
+    }
+  }
+}
+
+// --- Mock Automation Engine Logs (For Web Preview) ---
 function getMockSteps(keywords: string) {
   return [
-    `[HỆ THỐNG] Khởi tạo engine tự động hóa...`,
-    `[HÀNH ĐỘNG] Mở trình duyệt Chrome.`,
+    `[HỆ THỐNG] Đang chạy bản Web - Cần tải app Desktop để mở Chrome thực tế.`,
+    `[HÀNH ĐỘNG] Mở trình duyệt Chrome. (Mô phỏng)`,
     `[HÀNH ĐỘNG] Truy cập www.facebook.com...`,
     `[TRẠNG THÁI] Đã xác nhận trạng thái đăng nhập.`,
     `[HÀNH ĐỘNG] Tìm kiếm từ khóa: "${keywords || 'Bất động sản'}"`,
@@ -27,8 +37,7 @@ function getMockSteps(keywords: string) {
     `[HÀNH ĐỘNG] Chọn tham gia nhóm: "Mua Bán Nhà Đất Chính Chủ"`,
     `[HÀNH ĐỘNG] Lấy ngẫu nhiên bài đăng từ thư viện...`,
     `[HÀNH ĐỘNG] Đang soạn nội dung bài viết mới...`,
-    `[HÀNH ĐỘNG] Tải lên các file đính kèm...`,
-    `[THÀNH CÔNG] Đã đăng bài viết! Bài viết đang chờ duyệt hoặc đã hiển thị.`,
+    `[THÀNH CÔNG] Đã đăng bài viết! Bài viết đang chờ duyệt...`,
     `[HỆ THỐNG] Kịch bản hoàn thành. Đang vào chế độ ngủ.`
   ];
 }
@@ -54,6 +63,15 @@ export default function RealEstateAutoDashboard() {
     if (savedKey) setKeywords(savedKey);
   }, []);
 
+  // Set up Electron IPC listeners if running in Desktop App
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.onLog((msg: string) => {
+        setLogs(prev => [...prev, msg]);
+      });
+    }
+  }, []);
+
   // Save state
   useEffect(() => {
     localStorage.setItem('re_posts', JSON.stringify(posts));
@@ -69,7 +87,7 @@ export default function RealEstateAutoDashboard() {
     setPosts(posts.filter(p => p.id !== id));
   };
 
-  // --- Automation Engine Effect ---
+  // --- Automation Engine Trigger ---
   useEffect(() => {
     let tickInterval: NodeJS.Timeout;
     
@@ -77,36 +95,58 @@ export default function RealEstateAutoDashboard() {
       if (logs.length === 0) {
         setLogs([`[${new Date().toLocaleTimeString()}] Bắt đầu chiến dịch tự động đăng bài.`]);
       }
-      let stepIndex = 0;
-      const steps = getMockSteps(keywords);
       
-      const runCycle = () => {
-        if (stepIndex < steps.length) {
-          setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${steps[stepIndex]}`]);
-          stepIndex++;
-        } else {
-          setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Chờ ${intervalMinutes} phút cho chu kỳ tiếp theo...`]);
-          setCountdown(30); // 30 seconds demo countdown
-          stepIndex = 0;
-        }
-      };
+      // Nếu chạy trên Electron (App Desktop), gọi Backend Node.js thực thi thật
+      if (typeof window !== 'undefined' && window.electronAPI) {
+         if (logs.length <= 1) {
+            window.electronAPI.startAutomation({
+               keywords,
+               posts,
+               intervalMinutes
+            }).then(res => {
+               if (!res.success) {
+                  setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
+                  setIsRunning(false);
+               }
+            });
+         }
+      } 
+      // Nếu chạy trên Web (AI Studio Preview), chạy giả lập
+      else {
+        let stepIndex = 0;
+        const steps = getMockSteps(keywords);
+        
+        const runCycle = () => {
+          if (stepIndex < steps.length) {
+            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${steps[stepIndex]}`]);
+            stepIndex++;
+          } else {
+            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Chờ ${intervalMinutes} phút cho chu kỳ tiếp theo...`]);
+            setCountdown(30); // 30 seconds demo countdown
+            stepIndex = 0;
+          }
+        };
 
-      tickInterval = setInterval(() => {
-        if (countdown > 0) {
-          setCountdown(c => c - 1);
-        } else {
-          runCycle();
-        }
-      }, 2000);
+        tickInterval = setInterval(() => {
+          if (countdown > 0) {
+            setCountdown(c => c - 1);
+          } else {
+            runCycle();
+          }
+        }, 2000);
+      }
 
     } else {
       if (logs.length > 0 && !logs[logs.length-1].includes('Trạng thái chờ')) {
          setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HỆ THỐNG] Đã dừng. Trạng thái chờ khởi động.`]);
       }
       setCountdown(0);
+      // Stop logic for electron could be added here if needed
     }
 
-    return () => clearInterval(tickInterval);
+    return () => {
+      if (tickInterval) clearInterval(tickInterval);
+    };
   }, [isRunning, keywords, intervalMinutes, countdown]);
 
 
@@ -120,6 +160,11 @@ export default function RealEstateAutoDashboard() {
             <h1 className="text-xl font-bold">AutoFB Pro</h1>
           </div>
           <p className="text-xs text-slate-400">Tự động hóa đăng bài Bất Động Sản</p>
+          {typeof window !== 'undefined' && !window.electronAPI && (
+            <div className="mt-3 bg-blue-500/20 text-blue-300 text-[10px] px-2 py-1 rounded border border-blue-500/30">
+              Chế độ Web Preview (Giả lập)
+            </div>
+          )}
         </div>
         
         <nav className="flex-1 p-4 space-y-2 flex flex-row md:flex-col overflow-x-auto">
@@ -458,7 +503,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
            </button>
         ) : (
            <button onClick={() => setIsRunning(true)} className="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" disabled={posts.length === 0}>
-             <Play className="w-6 h-6 fill-current" /> BẮT ĐẦU CHẠY BOT
+             <Play className="w-6 h-6 fill-current" /> BẮT ĐẦU CHẠY BOT (MỞ CHROME)
            </button>
         )}
         {!isRunning && posts.length === 0 && <p className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded-lg">Bạn cần thêm bài viết vào kho đẻ chạy được Bot.</p>}
@@ -480,7 +525,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
         </div>
         <div className="p-5 overflow-y-auto flex-1 text-sm tracking-tight leading-relaxed">
           {logs.map((log: string, idx: number) => {
-             const isWarning = log.includes('Chờ') || log.includes('ngủ');
+             const isWarning = log.includes('Chờ') || log.includes('ngủ') || log.includes('LỖI');
              const isSuccess = log.includes('THÀNH CÔNG');
              const isAction = log.includes('HÀNH ĐỘNG');
              const isSystem = log.includes('HỆ THỐNG');
