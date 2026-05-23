@@ -117,6 +117,9 @@ async function runAutomation(config, logCallback) {
                   imagePaths.push(tmpPath);
                }
                
+               // Tìm tất cả các nút Ảnh/Video và kích hoạt tính năng chặn OS File Dialog của Puppeteer
+               const fileChooserPromise = page.waitForFileChooser({ timeout: 4000 }).catch(e => null);
+
                // Bấm vào nút Thêm Ảnh/Video trong Dialog trước nếu cần
                const clickedPhotoBtn = await page.evaluate(() => {
                  const dialog = document.querySelector('div[role="dialog"]');
@@ -133,30 +136,42 @@ async function runAutomation(config, logCallback) {
                  return false;
                });
                
+               let uploaded = false;
+
                if(clickedPhotoBtn) {
-                   logCallback(`[HÀNH ĐỘNG] Đã mở khu vực tải ảnh lên. Chờ 2s...`);
-                   await new Promise(r => setTimeout(r, 2000));
+                   logCallback(`[HÀNH ĐỘNG] Đã mở khu vực tải ảnh lên. Tự động xử lý File Dialog...`);
+                   const fileChooser = await fileChooserPromise;
+                   if (fileChooser) {
+                      await fileChooser.accept(imagePaths);
+                      uploaded = true;
+                      logCallback(`[THÀNH CÔNG] Đã tải ảnh lên thành công (Dùng FileChooser chặn hộp thoại hệ điều hành). CHỜ 8s...`);
+                      await new Promise(r => setTimeout(r, 8000));
+                   } else {
+                      logCallback(`[HÀNH ĐỘNG] Không có OS Dialog, tiếp tục đẩy ảnh qua input ngầm...`);
+                   }
                }
 
-               logCallback(`[HÀNH ĐỘNG] Đẩy ảnh vào trình duyệt...`);
-               let fileInputs = await page.$$('div[role="dialog"] input[type="file"]');
-               if (fileInputs.length === 0) {
-                 fileInputs = await page.$$('input[type="file"][accept*="image"]');
+               if (!uploaded) {
+                 logCallback(`[HÀNH ĐỘNG] Đẩy trực tiếp ảnh vào trình duyệt...`);
+                 let fileInputs = await page.$$('div[role="dialog"] input[type="file"]');
+                 if (fileInputs.length === 0) {
+                   fileInputs = await page.$$('input[type="file"][accept*="image"]');
+                 }
+                 
+                 for (let fileInput of fileInputs) {
+                    const accept = await page.evaluate(el => el.getAttribute('accept') || '', fileInput);
+                    if (accept.includes('image') || accept === '*/*') {
+                       try {
+                          await fileInput.uploadFile(...imagePaths);
+                          uploaded = true;
+                          logCallback(`[THÀNH CÔNG] Đã tải lên qua input ẩn. CHỜ 8s để Facebook xử lý ảnh...`);
+                          await new Promise(r => setTimeout(r, 8000));
+                          break;
+                       } catch(e) {}
+                    }
+                 }
                }
                
-               let uploaded = false;
-               for (let fileInput of fileInputs) {
-                  const accept = await page.evaluate(el => el.getAttribute('accept') || '', fileInput);
-                  if (accept.includes('image') || accept === '*/*') {
-                     try {
-                        await fileInput.uploadFile(...imagePaths);
-                        uploaded = true;
-                        logCallback(`[THÀNH CÔNG] Đã tải lên ảnh. CHỜ 8s để Facebook xử lý ảnh...`);
-                        await new Promise(r => setTimeout(r, 8000));
-                        break;
-                     } catch(e) {}
-                  }
-               }
                if (!uploaded) {
                   logCallback(`[CẢNH BÁO] Không tìm thấy khe đăng ảnh. Bỏ qua chế độ ảnh.`);
                }
