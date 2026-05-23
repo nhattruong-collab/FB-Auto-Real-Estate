@@ -98,6 +98,44 @@ async function runAutomation(config, logCallback) {
          logCallback(`[CHỜ] Đợi 3s sau khi điền chữ xong...`);
          await new Promise(r => setTimeout(r, 3000));
          
+         const fs = require('fs');
+         const path = require('path');
+         const os = require('os');
+         let imagePaths = [];
+
+         if (post.images && post.images.length > 0) {
+            logCallback(`[HÀNH ĐỘNG] Đang chuẩn bị ${post.images.length} ảnh để tải lên...`);
+            try {
+               for (let i = 0; i < post.images.length; i++) {
+                  const base64Data = post.images[i].replace(/^data:image\/\w+;base64,/, "");
+                  const tmpPath = path.join(os.tmpdir(), `fb_post_img_${Date.now()}_${i}.jpg`);
+                  fs.writeFileSync(tmpPath, base64Data, 'base64');
+                  imagePaths.push(tmpPath);
+               }
+               
+               logCallback(`[HÀNH ĐỘNG] Đẩy ảnh vào trình duyệt...`);
+               const fileInputs = await page.$$('input[type="file"]');
+               let uploaded = false;
+               for (let fileInput of fileInputs) {
+                  const accept = await page.evaluate(el => el.getAttribute('accept') || '', fileInput);
+                  if (accept.includes('image') || accept === '*/*') {
+                     try {
+                        await fileInput.uploadFile(...imagePaths);
+                        uploaded = true;
+                        logCallback(`[THÀNH CÔNG] Đã tải lên ảnh. CHỜ 8s để Facebook xử lý ảnh...`);
+                        await new Promise(r => setTimeout(r, 8000));
+                        break;
+                     } catch(e) {}
+                  }
+               }
+               if (!uploaded) {
+                  logCallback(`[CẢNH BÁO] Không tìm thấy khe đăng ảnh. Bỏ qua chế độ ảnh.`);
+               }
+            } catch(e) {
+               logCallback(`[LỖI] Lỗi chuẩn bị file ảnh: ${e.message}`);
+            }
+         }
+
          logCallback(`[HÀNH ĐỘNG] Tìm nút "Đăng"...`);
          const isPosted = await page.evaluate(() => {
            const btns = Array.from(document.querySelectorAll('div[role="button"]'));

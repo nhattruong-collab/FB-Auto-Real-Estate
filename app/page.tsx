@@ -65,15 +65,6 @@ export default function RealEstateAutoDashboard() {
     if (savedKey) setKeywords(savedKey);
   }, []);
 
-  // Set up Electron IPC listeners if running in Desktop App
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.onLog((msg: string) => {
-        setLogs(prev => [...prev, msg]);
-      });
-    }
-  }, []);
-
   // Save state
   useEffect(() => {
     localStorage.setItem('re_posts', JSON.stringify(posts));
@@ -89,49 +80,54 @@ export default function RealEstateAutoDashboard() {
     setPosts(posts.filter(p => p.id !== id));
   };
 
+  const stepIndexRef = useRef(0);
+  const countdownRef = useRef(0);
+
   // --- Automation Engine Trigger ---
   useEffect(() => {
     let tickInterval: NodeJS.Timeout;
     
     if (isRunning) {
-      if (logs.length === 0) {
-        setLogs([`[${new Date().toLocaleTimeString()}] Bắt đầu chiến dịch tự động đăng bài.`]);
+      if (logs.length === 0 || logs[logs.length-1].includes('Trạng thái chờ')) {
+        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Bắt đầu chiến dịch tự động đăng bài.`]);
       }
       
       // Nếu chạy trên Electron (App Desktop), gọi Backend Node.js thực thi thật
       if (typeof window !== 'undefined' && window.electronAPI) {
-         if (logs.length <= 1) {
-            window.electronAPI.startAutomation({
-               keywords,
-               posts,
-               intervalMinutes
-            }).then(res => {
-               if (!res.success) {
-                  setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
-                  setIsRunning(false);
-               }
-            });
-         }
+         window.electronAPI.startAutomation({
+            keywords,
+            posts,
+            intervalMinutes
+         }).then(res => {
+            if (!res.success) {
+               setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
+            } else {
+               setLogs((prev) => [...prev, `[HỆ THỐNG] Đã chạy xong 1 vòng lặp.`]);
+            }
+            setIsRunning(false);
+         });
       } 
       // Nếu chạy trên Web (AI Studio Preview), chạy giả lập
       else {
-        let stepIndex = 0;
+        stepIndexRef.current = 0;
+        countdownRef.current = 0;
         const steps = getMockSteps(keywords);
         
         const runCycle = () => {
-          if (stepIndex < steps.length) {
-            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${steps[stepIndex]}`]);
-            stepIndex++;
+          if (stepIndexRef.current < steps.length) {
+            const msg = steps[stepIndexRef.current];
+            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+            stepIndexRef.current++;
           } else {
             setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Chờ ${intervalMinutes} phút cho chu kỳ tiếp theo...`]);
-            setCountdown(30); // 30 seconds demo countdown
-            stepIndex = 0;
+            countdownRef.current = 15; // khoảng 30s
+            stepIndexRef.current = 0;
           }
         };
 
         tickInterval = setInterval(() => {
-          if (countdown > 0) {
-            setCountdown(c => c - 1);
+          if (countdownRef.current > 0) {
+            countdownRef.current -= 1;
           } else {
             runCycle();
           }
@@ -142,14 +138,14 @@ export default function RealEstateAutoDashboard() {
       if (logs.length > 0 && !logs[logs.length-1].includes('Trạng thái chờ')) {
          setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HỆ THỐNG] Đã dừng. Trạng thái chờ khởi động.`]);
       }
-      setCountdown(0);
-      // Stop logic for electron could be added here if needed
     }
 
     return () => {
       if (tickInterval) clearInterval(tickInterval);
     };
-  }, [isRunning, keywords, intervalMinutes, countdown]);
+  }, [isRunning]); // Chỉ phụ thuộc vào isRunning, tránh stale state và vòng lặp vô tận
+
+
 
 
   return (
