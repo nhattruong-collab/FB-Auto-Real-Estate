@@ -49,6 +49,7 @@ export default function RealEstateAutoDashboard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [keywords, setKeywords] = useState('Bất động sản Hà Nội, Mua bán nhà đất');
   const [intervalMinutes, setIntervalMinutes] = useState(30);
+  const [isMounted, setIsMounted] = useState(false);
   
   // Engine State
   const [isRunning, setIsRunning] = useState(false);
@@ -57,6 +58,7 @@ export default function RealEstateAutoDashboard() {
 
   // Load state from local storage on mount
   useEffect(() => {
+    setIsMounted(true);
     const savedPosts = localStorage.getItem('re_posts');
     const savedKey = localStorage.getItem('re_keywords');
     if (savedPosts) setPosts(JSON.parse(savedPosts));
@@ -160,7 +162,7 @@ export default function RealEstateAutoDashboard() {
             <h1 className="text-xl font-bold">AutoFB Pro</h1>
           </div>
           <p className="text-xs text-slate-400">Tự động hóa đăng bài Bất Động Sản</p>
-          {typeof window !== 'undefined' && !window.electronAPI && (
+          {isMounted && !window.electronAPI && (
             <div className="mt-3 bg-blue-500/20 text-blue-300 text-[10px] px-2 py-1 rounded border border-blue-500/30">
               Chế độ Web Preview (Giả lập)
             </div>
@@ -469,17 +471,17 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
 
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Khoảng nghỉ giữa các nhóm</label>
-            <select 
-               disabled={isRunning}
-               className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
-               value={intervalMinutes}
-               onChange={e => setIntervalMinutes(Number(e.target.value))}
-            >
-              <option value={15}>15 phút</option>
-              <option value={30}>30 phút</option>
-              <option value={60}>1 tiếng (An toàn)</option>
-              <option value={120}>2 tiếng</option>
-            </select>
+            <div className="relative">
+              <input 
+                 type="number"
+                 min="1"
+                 disabled={isRunning}
+                 className="w-full px-4 pr-16 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
+                 value={intervalMinutes || ''}
+                 onChange={e => setIntervalMinutes(Number(e.target.value))}
+              />
+              <span className="absolute right-4 top-2.5 text-gray-500 pointer-events-none">phút</span>
+            </div>
           </div>
 
           <div>
