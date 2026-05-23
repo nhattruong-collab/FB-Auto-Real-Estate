@@ -1,0 +1,15 @@
+{
+  "name": "fb-auto-electron",
+  "version": "1.0.0",
+  "description": "App tự động đăng Facebook với Electron và Puppeteer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "puppeteer-core": "^22.4.1"
+  },
+  "devDependencies": {
+    "electron": "^29.1.0"
+  }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto FB Mua Bán BĐS</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; color: #111827; }
+    h1 { font-size: 24px; color: #1d4ed8; margin-top: 0;}
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;}
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px;}
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; font-family: inherit;}
+    textarea { height: 100px; resize: vertical; }
+    button { background: #10b981; color: white; border: none; padding: 12px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; }
+    button:hover { background: #059669; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    #terminal { background: #111827; color: #10b981; padding: 15px; border-radius: 6px; font-family: monospace; height: 250px; overflow-y: auto; text-shadow: 0 0 2px #10b981; }
+    .log-line { margin-bottom: 4px; }
+    .instructions { background: #fffbeb; border: 1px solid #fde68a; padding: 15px; margin-bottom: 20px; border-radius: 6px; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <h1>Auto FB Real Estate - Desktop App</h1>
+
+  <div class="instructions">
+    <strong>⚠️ LƯU Ý QUAN TRỌNG ĐỂ VƯỢT QUA CHECKPOINT FACEBOOK:</strong><br>
+    Ứng dụng cơ chế "Puppeteer-Core" để lái chính trình duyệt Chrome của bạn (đã đăng nhập sẵn Facebook) để đảm bảo không bị khóa account do login từ IP/Browser lạ.
+    <br><br>
+    <strong>Bước 1:</strong> Tắt hoàn toàn tất cả cửa sổ Google Chrome hiện tại.<br>
+    <strong>Bước 2:</strong> Nhấn tổ hợp phím <code>Windows + R</code>, dán đoạn lệnh này vào và ấn Enter: 
+    <br><code style="background: white; padding: 2px 4px; border: 1px solid #ccc;">chrome.exe --remote-debugging-port=9222</code>
+    <br><strong>Bước 3:</strong> Quay lại đây và nhấn Bắt đầu chạy.
+  </div>
+
+  <div class="card">
+    <div class="form-group">
+      <label>Từ khóa Group Facebook:</label>
+      <input type="text" id="keywords" value="Mua bán nhà đất chính chủ Hà Nội">
+    </div>
+    
+    <div class="form-group">
+      <label>Nội dung bài viết mẫu:</label>
+      <textarea id="postContent">Chính chủ cần bán gấp nhà ngõ ô tô tránh, Vị trí kinh doanh sầm uất.
+Diện tích 50m2 x 5 tầng mới cứng.
+Sổ đỏ vuông đẹp, pháp lý chuẩn. Giá 8 tỷ (có thương lượng nhẹ).
+Anh chị quan tâm inbx e nhé!</textarea>
+    </div>
+
+    <button id="startBtn">BẮT ĐẦU CHẠY AUTO MỞ CHROME</button>
+  </div>
+
+  <div class="card">
+    <label>Log hệ thống (Terminal hiển thị tương tác thời gian thực):</label>
+    <div id="terminal"></div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const startBtn = document.getElementById('startBtn');
+
+    function writeLog(msg) {
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      terminal.appendChild(div);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    // Nhận dữ liệu truyền từ Backend Electron
+    window.electronAPI.onLog((msg) => writeLog(msg));
+
+    startBtn.addEventListener('click', async () => {
+      const keywords = document.getElementById('keywords').value;
+      const postContent = document.getElementById('postContent').value;
+
+      startBtn.disabled = true;
+      startBtn.innerText = 'ĐANG ĐIỀU KHIỂN CHROME...';
+      writeLog('--- BẮT ĐẦU CHIẾN DỊCH ---');
+
+      const response = await window.electronAPI.startAutomation({ keywords, postContent });
+      
+      if (!response.success && response.error) {
+        writeLog('');
+        writeLog('CÓ LỖI XẢY RA: Hệ thống đã ngừng tác vụ.');
+      }
+
+      startBtn.disabled = false;
+      startBtn.innerText = 'BẮT ĐẦU CHẠY AUTO MỞ CHROME';
+    });
+  </script>
+</body>
+</html>
