@@ -213,8 +213,87 @@ async function actionPostToCurrentGroup(page, post, logCallback) {
     }
 }
 
+async function runAIAutoCommentMatch(page, posts, commentTemplates, logCallback) {
+  logCallback(`[HÀNH ĐỘNG] Khởi động lọc bài AI Match: Đang rà quét bám đuôi khách trong Group...`);
+  
+  // Cuộn trang nhẹ để tải thêm bài viết của nhóm
+  await page.evaluate(() => window.scrollBy(0, 800));
+  await doActionWait(3000, logCallback);
+  await page.evaluate(() => window.scrollBy(0, 800));
+  await doActionWait(3000, logCallback);
+
+  try {
+    const rawGroupPosts = await page.evaluate(() => {
+      const sel = 'div[data-ad-preview="message"], div[dir="auto"], div[role="article"]';
+      const els = Array.from(document.querySelectorAll(sel));
+      return els.map((el, i) => ({
+        id: `gp_post_${i}_${Date.now().toString().slice(-4)}`,
+        text: el.innerText ? el.innerText.trim() : ''
+      })).filter(p => p.text.length > 25 && p.text.length < 1500);
+    });
+
+    if (!rawGroupPosts || rawGroupPosts.length === 0) {
+      logCallback(`[HỆ THỐNG] Không quét được bài đăng nào của nhóm trên màn hình ảo. Bỏ qua bình luận AI.`);
+      return;
+    }
+
+    logCallback(`[AI PHÂN TÍCH] Đã quét được ${rawGroupPosts.length} bài dạo. Đang tải dữ liệu đối sánh bất động sản khớp nhu cầu khách...`);
+
+    const clientFetch = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+    const res = await clientFetch('http://localhost:3000/api/gemini/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupPosts: rawGroupPosts.slice(0, 8),
+        libraryPosts: posts || []
+      })
+    });
+
+    const data = await res.json().catch(() => ({ matches: [] }));
+    if (!data.matches || data.matches.length === 0) {
+      logCallback(`[AI PHÂN TÍCH] Quét xong. Không thấy khách nào có nhu cầu khớp sản phẩm bất động sản của bạn.`);
+      return;
+    }
+
+    logCallback(`[AI PHÂN TÍCH] Phát hiện ${data.matches.length} bài tìm bđs khớp tốt với kho hàng của bạn.`);
+
+    for (let match of data.matches) {
+      if (shouldStop) break;
+
+      logCallback(`[AI KHỚP CHÍNH XÁC] Khớp nhu cầu mua: "${match.reason}"`);
+      logCallback(`[HÀNH ĐỘNG] Đang tự động gõ bình luận giới thiệu căn phù hợp...`);
+
+      const textSplit = commentTemplates ? commentTemplates.split('\n').map(t => t.trim()).filter(Boolean) : [];
+      const suffix = textSplit.length > 0 ? textSplit[Math.floor(Math.random() * textSplit.length)] : 'Vui lòng liên hệ mình để xem chi tiết nhé!';
+      const fullComment = `${match.customIntro}\n${suffix}`;
+
+      const commented = await page.evaluate((toCommentText) => {
+        const commentBox = document.querySelector('div[aria-label="Viết bình luận"], div[aria-label="Write a comment..."], div[role="textbox"][aria-label*="bình luận"]');
+        if (commentBox) {
+          commentBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          commentBox.focus();
+          document.execCommand('insertText', false, toCommentText);
+          return true;
+        }
+        return false;
+      }, fullComment);
+
+      if (commented) {
+        await doActionWait(2000, logCallback);
+        await page.keyboard.press('Enter');
+        logCallback(`[THÀNH CÔNG] Đã bình luận bám đuổi bằng AI thành công!`);
+        await doActionWait(4000, logCallback);
+      } else {
+        logCallback(`[CẢNH BÁO] Không tìm thấy ô bình luận dưới bài viết khớp bđs.`);
+      }
+    }
+  } catch (err) {
+    logCallback(`[LỖI AX] Lỗi tiến trình tự động bình luận bằng AI: ${err.message}`);
+  }
+}
+
 async function runAutomation(config, logCallback, postCount = 0) {
-  const { keywords, posts, intervalMinutes, postsBeforeBreak = 10, breakMinutes = 30, scenarios } = config;
+  const { keywords, posts, intervalMinutes, postsBeforeBreak = 10, breakMinutes = 30, scenarios, autoCommentEnabled, commentTemplates } = config;
   shouldStop = false;
   
   logCallback(`[HỆ THỐNG] Chuẩn bị bộ máy tự động hóa...`);
@@ -230,7 +309,7 @@ async function runAutomation(config, logCallback, postCount = 0) {
     logCallback(`[THÀNH CÔNG] Đã liên kết với Chrome thành công. Bắt đầu tác vụ thao tác chuột/phím.`);
     
     // Pick Scenario
-    let currentScenario = scenarios && scenarios.length > 0 ? scenarios[0] : null;
+    let currentScenario = scenarios && scenarios.length > 0 ? scenarios[Math.floor(Math.random() * scenarios.length)] : null;
     if (!currentScenario) {
        currentScenario = { actions: [{type: 'search_and_pick_group'}, {type: 'post_to_current_group'}] };
     }
@@ -252,7 +331,7 @@ async function runAutomation(config, logCallback, postCount = 0) {
              await actionScrollHome(page, action.durationSeconds || 60, logCallback);
              break;
            case 'search_and_pick_group':
-             await actionSearchAndPickGroup(page, keywords, logCallback);
+             await actionSearchAndPickGroup(page, keywords, logCallback); if (autoCommentEnabled) { await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback); };
              break;
            case 'scroll_current_page':
              await actionScrollCurrentPage(page, action.durationSeconds || 30, logCallback);

@@ -39,24 +39,40 @@ declare global {
 }
 
 // --- Mock Automation Engine Logs (For Web Preview) ---
-function getMockSteps(keywords: string) {
-  return [
+function getMockSteps(keywords: string, autoCommentEnabled: boolean) {
+  const steps = [
     `[HỆ THỐNG] Đang chạy bản Web - Cần tải app Desktop để mở Chrome thực tế.`,
     `[HÀNH ĐỘNG] Mở trình duyệt Chrome. (Mô phỏng)`,
     `[HÀNH ĐỘNG] Truy cập www.facebook.com...`,
     `[TRẠNG THÁI] Đã xác nhận trạng thái đăng nhập.`,
     `[HÀNH ĐỘNG] Tìm kiếm từ khóa: "${keywords || 'Bất động sản'}"`,
     `[HÀNH ĐỘNG] Cuộn trang kết quả (mô phỏng thao tác của người)...`,
-    `[HÀNH ĐỘNG] Chọn tham gia nhóm: "Mua Bán Nhà Đất Chính Chủ"`,
-    `[HÀNH ĐỘNG] Lấy ngẫu nhiên bài đăng từ thư viện...`,
+    `[HÀNH ĐỘNG] Chọn tham gia nhóm: "Mua Bán Nhà Đất Toàn Quốc"`
+  ];
+
+  if (autoCommentEnabled) {
+    steps.push(
+      `[HÀNH ĐỘNG] Quét các bài viết trong nhóm để tìm nhu cầu khách hàng...`,
+      `[AI PHÂN TÍCH] Phát hiện một yêu cầu của khách: "Diện tài chính 3.5 tỷ cần mua gấp nhà Tam Bình Thủ Đức, sổ riêng chính chủ..."`,
+      `[AI PHÂN TÍCH] Đang đối chiếu với các bđs hiện có trong kho bài viết của bạn...`,
+      `[AI PHÂN TÍCH] Tìm thấy bài đăng phù hợp: "Bán nhà Tam Bình giá chỉ 3.2 tỷ hẻm xe hơi, sổ hồng riêng..." (Khớp 95%)`,
+      `[HÀNH ĐỘNG] Đang soạn bình luận bám đuôi bằng AI...`,
+      `[THÀNH CÔNG] 🎉 Đã bình luận tư vấn: "Chào bạn, mình thấy trong kho nhà có căn Tam Bình 3.2 tỷ hẻm xe hơi rất hợp nhu cầu. Bạn nhắn Zalo 0901234567 mình gửi sổ hồng và tư vấn nhé!"`
+    );
+  }
+
+  steps.push(
+    `[HÀNH ĐỘNG] Lấy ngẫu nhiên bài đăng tư vấn từ thư viện...`,
     `[HÀNH ĐỘNG] Đang soạn nội dung bài viết mới...`,
     `[THÀNH CÔNG] Đã đăng bài viết! Bài viết đang chờ duyệt...`,
     `[HỆ THỐNG] Kịch bản hoàn thành. Đang vào chế độ ngủ.`
-  ];
+  );
+
+  return steps;
 }
 
 export default function RealEstateAutoDashboard() {
-  const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation' | 'scenarios'>('posts');
   
   // App State
   const [posts, setPosts] = useState<Post[]>([]);
@@ -75,6 +91,10 @@ export default function RealEstateAutoDashboard() {
       isActive: true
     }
   ]);
+  const [autoCommentEnabled, setAutoCommentEnabled] = useState(false);
+  const [commentTemplates, setCommentTemplates] = useState(
+    "Ib Zalo 0901234567, mình có giỏ hàng nhiều sản phẩm đẹp phù hợp nhu cầu.\nNhắn Zalo 0901234567 mình gửi thông tin chi tiết và sổ hồng nhé!\nIb Zalo 0901234567 mình tư vấn tìm căn phù hợp nhất nha."
+  );
   const [isMounted, setIsMounted] = useState(false);
   
   // Engine State
@@ -89,9 +109,13 @@ export default function RealEstateAutoDashboard() {
     const savedPosts = localStorage.getItem('re_posts');
     const savedKey = localStorage.getItem('re_keywords');
     const savedScenarios = localStorage.getItem('re_scenarios');
+    const savedCommentEnabled = localStorage.getItem('re_auto_comment_enabled');
+    const savedCommentTemplates = localStorage.getItem('re_comment_templates');
     if (savedPosts) setPosts(JSON.parse(savedPosts));
     if (savedKey) setKeywords(savedKey);
     if (savedScenarios) setScenarios(JSON.parse(savedScenarios));
+    if (savedCommentEnabled) setAutoCommentEnabled(savedCommentEnabled === 'true');
+    if (savedCommentTemplates) setCommentTemplates(savedCommentTemplates);
   }, []);
 
   // Save state
@@ -99,7 +123,9 @@ export default function RealEstateAutoDashboard() {
     localStorage.setItem('re_posts', JSON.stringify(posts));
     localStorage.setItem('re_keywords', keywords);
     localStorage.setItem('re_scenarios', JSON.stringify(scenarios));
-  }, [posts, keywords, scenarios]);
+    localStorage.setItem('re_auto_comment_enabled', String(autoCommentEnabled));
+    localStorage.setItem('re_comment_templates', commentTemplates);
+  }, [posts, keywords, scenarios, autoCommentEnabled, commentTemplates]);
 
   const addPost = (content: string, images: string[] = []) => {
     const newPost = { id: Date.now().toString(), content, images, createdAt: Date.now() };
@@ -144,7 +170,9 @@ export default function RealEstateAutoDashboard() {
              intervalMinutes,
              postsBeforeBreak,
              breakMinutes,
-             scenarios: scenarios.filter(s => s.isActive)
+             scenarios: scenarios.filter(s => s.isActive),
+             autoCommentEnabled,
+             commentTemplates
           }).then(res => {
             if (!res.success) {
                setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
@@ -158,7 +186,7 @@ export default function RealEstateAutoDashboard() {
       else {
         stepIndexRef.current = 0;
         countdownRef.current = 0;
-        const steps = getMockSteps(keywords);
+        const steps = getMockSteps(keywords, autoCommentEnabled);
         
         const runCycle = () => {
           if (stepIndexRef.current < steps.length) {
@@ -240,6 +268,14 @@ export default function RealEstateAutoDashboard() {
             <Activity className="w-5 h-5" />
             <span className="hidden md:inline">Chiến dịch tự động</span>
           </button>
+
+          <button 
+            onClick={() => setActiveTab('scenarios')}
+            className={`flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-lg transition-colors whitespace-nowrap ${activeTab === 'scenarios' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="hidden md:inline">Kịch bản tương tác</span>
+          </button>
         </nav>
       </aside>
 
@@ -264,6 +300,18 @@ export default function RealEstateAutoDashboard() {
               isRunning={isRunning}
               setIsRunning={setIsRunning}
               logs={logs}
+              setActiveTab={setActiveTab}
+              autoCommentEnabled={autoCommentEnabled}
+              setAutoCommentEnabled={setAutoCommentEnabled}
+              commentTemplates={commentTemplates}
+              setCommentTemplates={setCommentTemplates}
+            />
+          )}
+          {activeTab === 'scenarios' && (
+            <ScenariosView 
+              scenarios={scenarios}
+              setScenarios={setScenarios}
+              isRunning={isRunning}
             />
           )}
         </div>
@@ -524,55 +572,13 @@ function BotIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, logs }: any) {
+function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, logs, setActiveTab, autoCommentEnabled, setAutoCommentEnabled, commentTemplates, setCommentTemplates }: any) {
   
   const endLogRef = useRef<HTMLDivElement>(null);
-  const [scenarioPrompt, setScenarioPrompt] = useState("");
-  const [isGeneratingScenario, setIsGeneratingScenario] = useState(false);
 
   useEffect(() => {
     endLogRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
-
-  const handleGenerateScenario = async () => {
-    if (!scenarioPrompt.trim()) return;
-    setIsGeneratingScenario(true);
-    try {
-      const res = await fetch('/api/gemini/scenario', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: scenarioPrompt })
-      });
-      const data = await res.json();
-      if (data.actions && Array.isArray(data.actions)) {
-        const newScenario = {
-          id: Date.now().toString(),
-          name: 'Kịch bản AI ' + new Date().toLocaleTimeString(),
-          actions: data.actions,
-          isActive: false
-        };
-        setScenarios([newScenario, ...scenarios.map((s: any) => ({ ...s, isActive: false }))]);
-        newScenario.isActive = true; // active by default
-        setScenarioPrompt("");
-        alert("Đã tạo kịch bản thành công!");
-      } else {
-        alert(data.error || 'Có lỗi xảy ra');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Không thể kết nối đến server.');
-    } finally {
-      setIsGeneratingScenario(false);
-    }
-  };
-
-  const toggleScenario = (id: string) => {
-    setScenarios(scenarios.map((s: any) => ({ ...s, isActive: s.id === id })));
-  };
-
-  const deleteScenario = (id: string) => {
-    setScenarios(scenarios.filter((s: any) => s.id !== id));
-  };
 
   return (
     <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
@@ -601,49 +607,17 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Kịch bản tương tác (AI Tạo)</label>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <input 
-                   type="text"
-                   disabled={isRunning || isGeneratingScenario}
-                   placeholder="VD: Lướt FB 2 phút, sau đó vào search group đăng bài..."
-                   className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                   value={scenarioPrompt}
-                   onChange={e => setScenarioPrompt(e.target.value)}
-                />
-                <button 
-                   disabled={isRunning || isGeneratingScenario || !scenarioPrompt.trim()}
-                   onClick={handleGenerateScenario}
-                   className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isGeneratingScenario ? 'Đang tạo...' : <><Sparkles className="w-4 h-4" /> AI Tạo</>}
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {scenarios.map((s: any) => (
-                  <div key={s.id} className={`p-3 rounded-lg border text-sm transition-colors cursor-pointer flex flex-col gap-2 ${s.isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-blue-300'}`} onClick={() => !isRunning && toggleScenario(s.id)}>
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-gray-900">{s.name}</span>
-                      {!isRunning && s.id !== 'default' && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); deleteScenario(s.id); }}
-                          className="text-red-500 p-1 hover:bg-red-100 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                      {s.isActive && <CheckCircle2 className="w-4 h-4 text-blue-500" />}
-                    </div>
-                    <ul className="list-disc list-inside text-gray-600 text-[11px] space-y-1">
-                      {s.actions.map((act: any, idx: number) => (
-                        <li key={idx} className="line-clamp-1">{act.label || act.type} {act.durationSeconds ? `(${act.durationSeconds}s)` : ''}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Kịch bản tương tác (Bốc ngẫu nhiên)</label>
+            <div className="bg-slate-50 p-4 border border-gray-200 rounded-lg text-sm text-gray-600 space-y-2">
+              <p>Hiện tại có <span className="font-bold text-gray-900">{scenarios.filter((s: any) => s.isActive).length}</span> kịch bản đang kích hoạt.</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">Khi chiến dịch tự động diễn ra, hệ thống sẽ bốc ngẫu nhiên 1 kịch bản trong số đó cho mỗi chu kỳ để tránh robot bị Facebook quét.</p>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('scenarios')} 
+                className="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition-colors mt-1 focus:outline-none"
+              >
+                Cấu hình thêm tại Tab Kịch bản →
+              </button>
             </div>
           </div>
 
@@ -705,6 +679,52 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
                </div>
              </div>
           </div>
+
+          {/* AI Auto Comment Settings Card */}
+          <div className="border-t border-gray-150 pt-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
+                <div>
+                  <label className="block text-sm font-bold text-gray-800">Tự động bình luận bằng AI (Auto Match)</label>
+                  <span className="block text-xs text-slate-500">Tìm bài viết hỏi mua/cần mua để AI tư vấn tự động</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  disabled={isRunning}
+                  checked={autoCommentEnabled}
+                  onChange={e => setAutoCommentEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            {autoCommentEnabled && (
+              <div className="space-y-3 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 p-4 rounded-xl border border-indigo-100 animate-fadeIn text-left">
+                <p className="text-[11px] text-indigo-950 leading-relaxed font-medium">
+                  💡 Cách thức hoạt động: AI quét các bài dạo trong Group, lọc ra bài tìm kiếm bđs của khách (Ví dụ: &quot;Cần tìm đất dưới 4 tỷ...&quot;), tự động đối chiếu các bài đăng trong kho của bạn để tìm căn phù hợp nhất, ghép lời tư vấn thông minh bám đuổi &amp; đính kèm mẫu Zalo/Sđt liên lạc được đặt sẵn dưới đây!
+                </p>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Danh sách mẫu SĐT liên hệ cuối bình luận (mỗi dòng 1 mẫu):</label>
+                  <textarea 
+                    disabled={isRunning}
+                    rows={4}
+                    placeholder="Mẫu 1: Ib zalo 090xxxxx, mình có căn này rất khớp nhu cầu của bạn.&#10;Mẫu 2: Nhắn zalo 090xxxxx mình gửi sđt và sổ hồng xem nhé.&#10;..."
+                    className="w-full p-2.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-700 font-mono leading-relaxed"
+                    value={commentTemplates}
+                    onChange={e => setCommentTemplates(e.target.value)}
+                  />
+                  <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
+                    <span>Hệ thống sẽ chọn ngẫu nhiên 1 dòng để tránh bị spam.</span>
+                    <span className="font-semibold text-slate-500">Số mẫu: {commentTemplates.split('\n').filter((t: string) => t.trim()).length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Action button */}
@@ -756,6 +776,181 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scenario[], setScenarios: (s: Scenario[]) => void, isRunning: boolean }) {
+  const [scenarioPrompt, setScenarioPrompt] = useState("");
+  const [isGeneratingScenario, setIsGeneratingScenario] = useState(false);
+
+  const handleGenerateScenario = async (customPrompt?: string) => {
+    const promptToSend = customPrompt || scenarioPrompt;
+    if (!promptToSend.trim() && !customPrompt) {
+      alert("Vui lòng nhập ý tưởng kịch bản hoặc chọn 'Tự động đề xuất'!");
+      return;
+    }
+    
+    setIsGeneratingScenario(true);
+    try {
+      const res = await fetch('/api/gemini/scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: promptToSend,
+          isRandom: !promptToSend 
+        })
+      });
+      const data = await res.json();
+      if (data.actions && Array.isArray(data.actions)) {
+        const newScenario = {
+          id: Date.now().toString(),
+          name: data.name || ('Kịch bản AI ' + new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })),
+          actions: data.actions,
+          isActive: true
+        };
+        setScenarios([newScenario, ...scenarios]);
+        if (!customPrompt) setScenarioPrompt("");
+        alert(`Đã tạo kịch bản "${newScenario.name}" bằng AI thành công!`);
+      } else {
+        alert(data.error || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến server.');
+    } finally {
+      setIsGeneratingScenario(false);
+    }
+  };
+
+  const toggleScenario = (id: string) => {
+    setScenarios(scenarios.map((s: any) => s.id === id ? { ...s, isActive: !s.isActive } : s));
+  };
+
+  const deleteScenario = (id: string) => {
+    setScenarios(scenarios.filter((s: any) => s.id !== id));
+  };
+
+  const PRESETS = [
+    "Nuôi tài khoản: Lướt News feed 2 phút, like dạo rồi mới tìm group đăng bài",
+    "Gia tăng tương tác chéo: Vào group, lướt dạo xem tin tức 1 phút rồi mới đăng",
+    "Thả lỏng thông minh: Đi dạo trang chủ 30 giây, lướt trong nhóm 1 phút rồi mới đăng bài để tránh robot"
+  ];
+
+  return (
+    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Settings className="w-6 h-6 text-indigo-600" /> Kịch bản tương tác tự động
+        </h2>
+        <p className="text-gray-500 text-sm mt-1">
+          Tạo và kích hoạt các kịch bản tương tác khác nhau của bot. Khi chiến dịch tự động bắt đầu, bot sẽ <strong>bốc ngẫu nhiên (random)</strong> một trong những kịch bản đang được kích hoạt để tăng độ tương tác đa dạng, tránh bị hệ thống Facebook nhận dạng spam.
+        </p>
+      </div>
+
+      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 mb-6 col-span-2">
+        <div className="flex justify-between items-center mb-3">
+          <label className="block text-sm font-bold text-indigo-900">🪄 Thiết kế kịch bản thông minh bằng AI</label>
+          <button
+            type="button"
+            disabled={isRunning || isGeneratingScenario}
+            onClick={() => handleGenerateScenario("")}
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> AI tự tạo kịch bản ngẫu nhiên hợp lý
+          </button>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input 
+             type="text"
+             disabled={isRunning || isGeneratingScenario}
+             placeholder="Hoặc tự mô tả: VD lướt FB 2 phút, like dạo, sau đó tìm group đăng bài..."
+             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
+             value={scenarioPrompt}
+             onChange={e => setScenarioPrompt(e.target.value)}
+          />
+          <button 
+             disabled={isRunning || isGeneratingScenario || !scenarioPrompt.trim()}
+             onClick={() => handleGenerateScenario()}
+             className="px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-900 disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 transition-colors text-sm"
+          >
+            {isGeneratingScenario ? 'Đang tạo bằng AI...' : 'Tạo theo ý bạn'}
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <span className="text-xs font-semibold text-slate-500 block mb-1.5">Hoặc bấm chọn nhanh gợi ý:</span>
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((preset, i) => (
+              <button
+                key={i}
+                type="button"
+                disabled={isRunning || isGeneratingScenario}
+                onClick={() => {
+                  setScenarioPrompt(preset);
+                }}
+                className="text-xs bg-white text-slate-700 border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-all text-left max-w-full truncate"
+              >
+                💡 {preset}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {scenarios.map((s: any) => (
+          <div 
+            key={s.id} 
+            className={`p-4 rounded-xl border transition-all flex flex-col justify-between min-h-[140px] bg-white ${s.isActive ? 'border-blue-500 ring-1 ring-blue-500 shadow-sm' : 'border-gray-200 shadow-sm hover:border-gray-300'}`}
+          >
+            <div>
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-bold text-gray-900 text-base">{s.name}</span>
+                <div className="flex items-center gap-2">
+                  {!isRunning && s.id !== 'default' && (
+                    <button 
+                      onClick={() => deleteScenario(s.id)}
+                      className="text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Xóa kịch bản"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <input
+                    type="checkbox"
+                    disabled={isRunning}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                    checked={s.isActive}
+                    onChange={() => toggleScenario(s.id)}
+                  />
+                </div>
+              </div>
+              
+              <div className="text-xs mb-3 font-medium">
+                {s.isActive ? (
+                  <span className="text-green-600 font-semibold">🟢 Kích hoạt (Sẵn sàng chọn ngẫu nhiên)</span>
+                ) : (
+                  <span className="text-gray-400">⚪️ Đang tắt</span>
+                )}
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                <div className="text-[11px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Các bước thực thi:</div>
+                <ul className="list-decimal list-inside text-xs text-slate-700 space-y-1">
+                  {s.actions.map((act: any, idx: number) => (
+                    <li key={idx} className="line-clamp-1">
+                      <span className="font-medium text-slate-800">{act.label || act.type}</span>
+                      {act.durationSeconds ? <span className="text-gray-400 text-[10px] ml-1">({act.durationSeconds} giây)</span> : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
