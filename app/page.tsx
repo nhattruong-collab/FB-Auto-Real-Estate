@@ -77,12 +77,19 @@ function getMockSteps(keywords: string, autoCommentEnabled: boolean) {
 export default function RealEstateAutoDashboard() {
   const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation' | 'scenarios' | 'autocomment'>('posts');
   
-  // App State
+  // App State - Post
   const [posts, setPosts] = useState<Post[]>([]);
-  const [keywords, setKeywords] = useState('Bất động sản Hà Nội, Mua bán nhà đất');
-  const [intervalMinutes, setIntervalMinutes] = useState(30);
+  const [postKeywords, setPostKeywords] = useState('Bất động sản Hà Nội, Mua bán nhà đất');
+  const [postIntervalMinutes, setPostIntervalMinutes] = useState(30);
   const [postsBeforeBreak, setPostsBeforeBreak] = useState(10);
-  const [breakMinutes, setBreakMinutes] = useState(60);
+  const [postBreakMinutes, setPostBreakMinutes] = useState(60);
+
+  // App State - Comment
+  const [commentKeywords, setCommentKeywords] = useState('Mua bán nhà đất Hà Nội, Cho thuê chung cư HCM');
+  const [commentIntervalMinutes, setCommentIntervalMinutes] = useState(15);
+  const [commentsBeforeBreak, setCommentsBeforeBreak] = useState(20);
+  const [commentBreakMinutes, setCommentBreakMinutes] = useState(45);
+  
   const [scenarios, setScenarios] = useState<Scenario[]>([
     {
       id: 'default',
@@ -100,32 +107,69 @@ export default function RealEstateAutoDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   
   // Engine State
-  const [isRunning, setIsRunning] = useState(false);
-  const [automationMode, setAutomationMode] = useState<'post' | 'comment'>('post');
-  const [logs, setLogs] = useState<string[]>([]);
-  const [countdown, setCountdown] = useState(0);
+  const [isPostRunning, setIsPostRunning] = useState(false);
+  const [isCommentRunning, setIsCommentRunning] = useState(false);
+  const [postLogs, setPostLogs] = useState<string[]>([]);
+  const [commentLogs, setCommentLogs] = useState<string[]>([]);
 
   // Load state from local storage on mount
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
     const savedPosts = localStorage.getItem('re_posts');
-    const savedKey = localStorage.getItem('re_keywords');
+    const savedPostSettings = localStorage.getItem('re_post_settings');
+    const savedCommentSettings = localStorage.getItem('re_comment_settings');
     const savedScenarios = localStorage.getItem('re_scenarios');
     const savedCommentTemplates = localStorage.getItem('re_comment_templates');
+    
     if (savedPosts) setPosts(JSON.parse(savedPosts));
-    if (savedKey) setKeywords(savedKey);
     if (savedScenarios) setScenarios(JSON.parse(savedScenarios));
     if (savedCommentTemplates) setCommentTemplates(savedCommentTemplates);
+
+    if (savedPostSettings) {
+      try {
+         const pState = JSON.parse(savedPostSettings);
+         if (pState.keywords) setPostKeywords(pState.keywords);
+         if (pState.intervalMinutes) setPostIntervalMinutes(pState.intervalMinutes);
+         if (pState.postsBeforeBreak) setPostsBeforeBreak(pState.postsBeforeBreak);
+         if (pState.breakMinutes) setPostBreakMinutes(pState.breakMinutes);
+      } catch(e) {}
+    }
+    
+    // Migration: load old keyword for backward compatibility, then override
+    const oldKey = localStorage.getItem('re_keywords');
+    if (oldKey && !savedPostSettings) setPostKeywords(oldKey);
+
+    if (savedCommentSettings) {
+      try {
+         const cState = JSON.parse(savedCommentSettings);
+         if (cState.keywords) setCommentKeywords(cState.keywords);
+         if (cState.intervalMinutes) setCommentIntervalMinutes(cState.intervalMinutes);
+         if (cState.commentsBeforeBreak) setCommentsBeforeBreak(cState.commentsBeforeBreak);
+         if (cState.breakMinutes) setCommentBreakMinutes(cState.breakMinutes);
+      } catch(e) {}
+    }
+
   }, []);
 
   // Save state
   useEffect(() => {
     localStorage.setItem('re_posts', JSON.stringify(posts));
-    localStorage.setItem('re_keywords', keywords);
+    localStorage.setItem('re_post_settings', JSON.stringify({
+      keywords: postKeywords,
+      intervalMinutes: postIntervalMinutes,
+      postsBeforeBreak,
+      breakMinutes: postBreakMinutes
+    }));
+    localStorage.setItem('re_comment_settings', JSON.stringify({
+      keywords: commentKeywords,
+      intervalMinutes: commentIntervalMinutes,
+      commentsBeforeBreak,
+      breakMinutes: commentBreakMinutes
+    }));
     localStorage.setItem('re_scenarios', JSON.stringify(scenarios));
     localStorage.setItem('re_comment_templates', commentTemplates);
-  }, [posts, keywords, scenarios, commentTemplates]);
+  }, [posts, postKeywords, postIntervalMinutes, postsBeforeBreak, postBreakMinutes, commentKeywords, commentIntervalMinutes, commentsBeforeBreak, commentBreakMinutes, scenarios, commentTemplates]);
 
   const addPost = (content: string, images: string[] = []) => {
     const newPost = { id: Date.now().toString(), content, images, createdAt: Date.now() };
@@ -140,69 +184,80 @@ export default function RealEstateAutoDashboard() {
     setPosts(posts.map(p => p.id === id ? { ...p, content, images } : p));
   };
 
+  const isPostRunningRef = useRef(false);
+  const isCommentRunningRef = useRef(false);
+
+  useEffect(() => { isPostRunningRef.current = isPostRunning; }, [isPostRunning]);
+  useEffect(() => { isCommentRunningRef.current = isCommentRunning; }, [isCommentRunning]);
+
   // Set up Electron IPC listeners if running in Desktop App
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
       window.electronAPI.onLog((msg: string) => {
-        setLogs(prev => [...prev, msg]);
+        if (isCommentRunningRef.current && !isPostRunningRef.current) {
+          setCommentLogs(prev => [...prev, msg]);
+        } else if (isPostRunningRef.current && !isCommentRunningRef.current) {
+          setPostLogs(prev => [...prev, msg]);
+        } else {
+          setPostLogs(prev => [...prev, msg]);
+          setCommentLogs(prev => [...prev, msg]);
+        }
       });
     }
   }, []);
 
-  const stepIndexRef = useRef(0);
-  const countdownRef = useRef(0);
+  const stepIndexRefPost = useRef(0);
+  const countdownRefPost = useRef(0);
 
-  // --- Automation Engine Trigger ---
+  // --- Automation Engine Trigger POST ---
   useEffect(() => {
     let tickInterval: NodeJS.Timeout;
     
-    if (isRunning) {
-      if (logs.length === 0 || logs[logs.length-1].includes('Trạng thái chờ')) {
+    if (isPostRunning) {
+      if (postLogs.length === 0 || postLogs[postLogs.length-1].includes('Trạng thái chờ')) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Bắt đầu chiến dịch tự động đăng bài.`]);
+        setPostLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Bắt đầu chiến dịch tự động đăng bài.`]);
       }
       
-      // Nếu chạy trên Electron (App Desktop), gọi Backend Node.js thực thi thật
+      // Nếu chạy trên Electron (App Desktop)
       if (typeof window !== 'undefined' && window.electronAPI) {
           window.electronAPI.startAutomation({
-             mode: automationMode,
-             keywords,
+             mode: 'post',
+             keywords: postKeywords,
              posts,
-             intervalMinutes,
-             postsBeforeBreak,
-             breakMinutes,
-             scenarios: scenarios.filter(s => s.isActive),
-             commentTemplates
+             intervalMinutes: postIntervalMinutes,
+             postsBeforeBreak: postsBeforeBreak,
+             breakMinutes: postBreakMinutes,
+             scenarios: scenarios.filter(s => s.isActive)
           }).then(res => {
             if (!res.success) {
-               setLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
+               setPostLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
             } else {
-               setLogs((prev) => [...prev, `[HỆ THỐNG] Tiến trình bot đã dừng hoàn toàn.`]);
+               setPostLogs((prev) => [...prev, `[HỆ THỐNG] Tiến trình bot đã dừng hoàn toàn.`]);
             }
-            setIsRunning(false);
+            setIsPostRunning(false);
          });
       } 
-      // Nếu chạy trên Web (AI Studio Preview), chạy giả lập
       else {
-        stepIndexRef.current = 0;
-        countdownRef.current = 0;
-        const steps = getMockSteps(keywords, automationMode === 'comment');
+        stepIndexRefPost.current = 0;
+        countdownRefPost.current = 0;
+        const steps = getMockSteps(postKeywords, false);
         
         const runCycle = () => {
-          if (stepIndexRef.current < steps.length) {
-            const msg = steps[stepIndexRef.current];
-            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
-            stepIndexRef.current++;
+          if (stepIndexRefPost.current < steps.length) {
+            const msg = steps[stepIndexRefPost.current];
+            setPostLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+            stepIndexRefPost.current++;
           } else {
-            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Chờ ${intervalMinutes} phút cho chu kỳ tiếp theo...`]);
-            countdownRef.current = 15; // khoảng 30s
-            stepIndexRef.current = 0;
+            setPostLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Chờ ${postIntervalMinutes} phút cho chu kỳ tiếp theo...`]);
+            countdownRefPost.current = 15;
+            stepIndexRefPost.current = 0;
           }
         };
 
         tickInterval = setInterval(() => {
-          if (countdownRef.current > 0) {
-            countdownRef.current -= 1;
+          if (countdownRefPost.current > 0) {
+            countdownRefPost.current -= 1;
           } else {
             runCycle();
           }
@@ -210,11 +265,11 @@ export default function RealEstateAutoDashboard() {
       }
 
     } else {
-      if (typeof window !== 'undefined' && window.electronAPI) {
+      if (typeof window !== 'undefined' && window.electronAPI && !isCommentRunning) {
          window.electronAPI.stopAutomation?.();
       }
-      if (logs.length > 0 && !logs[logs.length-1].includes('Trạng thái chờ') && !logs[logs.length-1].includes('dừng hoàn toàn')) {
-         setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HỆ THỐNG] Đã dừng. Trạng thái chờ khởi động.`]);
+      if (postLogs.length > 0 && !postLogs[postLogs.length-1].includes('Trạng thái chờ') && !postLogs[postLogs.length-1].includes('dừng hoàn toàn')) {
+         setPostLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HỆ THỐNG] Đã dừng. Trạng thái chờ khởi động.`]);
       }
     }
 
@@ -222,7 +277,80 @@ export default function RealEstateAutoDashboard() {
       if (tickInterval) clearInterval(tickInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning]); // Chỉ phụ thuộc vào isRunning, tránh stale state và vòng lặp vô tận
+  }, [isPostRunning]);
+
+  const stepIndexRefComment = useRef(0);
+  const countdownRefComment = useRef(0);
+
+  // --- Automation Engine Trigger COMMENT ---
+  useEffect(() => {
+    let tickInterval: NodeJS.Timeout;
+    
+    if (isCommentRunning) {
+      if (commentLogs.length === 0 || commentLogs[commentLogs.length-1].includes('Trạng thái chờ')) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCommentLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Bắt đầu tiến trình tự động bình luận bám đuôi.`]);
+      }
+      
+      // Nếu chạy trên Electron (App Desktop)
+      if (typeof window !== 'undefined' && window.electronAPI) {
+          window.electronAPI.startAutomation({
+             mode: 'comment',
+             keywords: commentKeywords,
+             posts,
+             intervalMinutes: commentIntervalMinutes,
+             postsBeforeBreak: commentsBeforeBreak,
+             breakMinutes: commentBreakMinutes,
+             commentTemplates
+          }).then(res => {
+            if (!res.success) {
+               setCommentLogs((prev) => [...prev, `[LỖI] ${res.error}`]);
+            } else {
+               setCommentLogs((prev) => [...prev, `[HỆ THỐNG] Tiến trình bot đã dừng hoàn toàn.`]);
+            }
+            setIsCommentRunning(false);
+         });
+      } 
+      else {
+        stepIndexRefComment.current = 0;
+        countdownRefComment.current = 0;
+        const steps = getMockSteps(commentKeywords, true);
+        
+        const runCycle = () => {
+          if (stepIndexRefComment.current < steps.length) {
+            const msg = steps[stepIndexRefComment.current];
+            setCommentLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+            stepIndexRefComment.current++;
+          } else {
+            setCommentLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Chờ ${commentIntervalMinutes} phút cho chu kỳ tiếp theo...`]);
+            countdownRefComment.current = 15;
+            stepIndexRefComment.current = 0;
+          }
+        };
+
+        tickInterval = setInterval(() => {
+          if (countdownRefComment.current > 0) {
+            countdownRefComment.current -= 1;
+          } else {
+            runCycle();
+          }
+        }, 2000);
+      }
+
+    } else {
+      if (typeof window !== 'undefined' && window.electronAPI && !isPostRunning) {
+         window.electronAPI.stopAutomation?.();
+      }
+      if (commentLogs.length > 0 && !commentLogs[commentLogs.length-1].includes('Trạng thái chờ') && !commentLogs[commentLogs.length-1].includes('dừng hoàn toàn')) {
+         setCommentLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HỆ THỐNG] Đã dừng. Trạng thái chờ khởi động.`]);
+      }
+    }
+
+    return () => {
+      if (tickInterval) clearInterval(tickInterval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCommentRunning]);
 
 
 
@@ -299,20 +427,19 @@ export default function RealEstateAutoDashboard() {
           {activeTab === 'automation' && (
             <AutomationView 
               posts={posts}
-              keywords={keywords}
-              setKeywords={setKeywords}
-              intervalMinutes={intervalMinutes}
-              setIntervalMinutes={setIntervalMinutes}
+              keywords={postKeywords}
+              setKeywords={setPostKeywords}
+              intervalMinutes={postIntervalMinutes}
+              setIntervalMinutes={setPostIntervalMinutes}
               postsBeforeBreak={postsBeforeBreak}
               setPostsBeforeBreak={setPostsBeforeBreak}
-              breakMinutes={breakMinutes}
-              setBreakMinutes={setBreakMinutes}
+              breakMinutes={postBreakMinutes}
+              setBreakMinutes={setPostBreakMinutes}
               scenarios={scenarios}
               setScenarios={setScenarios}
-              isRunning={isRunning}
-              setIsRunning={setIsRunning}
-              setAutomationMode={setAutomationMode}
-              logs={logs}
+              isRunning={isPostRunning}
+              setIsRunning={setIsPostRunning}
+              logs={postLogs}
               setActiveTab={setActiveTab}
             />
           )}
@@ -320,20 +447,25 @@ export default function RealEstateAutoDashboard() {
             <ScenariosView 
               scenarios={scenarios}
               setScenarios={setScenarios}
-              isRunning={isRunning}
+              isRunning={isPostRunning || isCommentRunning}
             />
           )}
           {activeTab === 'autocomment' && (
             <AutoCommentView
-              keywords={keywords}
-              setKeywords={setKeywords}
+              keywords={commentKeywords}
+              setKeywords={setCommentKeywords}
+              intervalMinutes={commentIntervalMinutes}
+              setIntervalMinutes={setCommentIntervalMinutes}
+              postsBeforeBreak={commentsBeforeBreak}
+              setPostsBeforeBreak={setCommentsBeforeBreak}
+              breakMinutes={commentBreakMinutes}
+              setBreakMinutes={setCommentBreakMinutes}
               posts={posts}
               commentTemplates={commentTemplates}
               setCommentTemplates={setCommentTemplates}
-              isRunning={isRunning}
-              setIsRunning={setIsRunning}
-              setAutomationMode={setAutomationMode}
-              logs={logs}
+              isRunning={isCommentRunning}
+              setIsRunning={setIsCommentRunning}
+              logs={commentLogs}
             />
           )}
         </div>
@@ -642,7 +774,7 @@ function BotIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, setAutomationMode, logs, setActiveTab }: any) {
+function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, logs, setActiveTab }: any) {
   const endLogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -660,6 +792,14 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
             <Zap className="w-5 h-5 text-blue-500" />
             Chiến dịch tự động
           </h2>
+
+          <div className="space-y-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 text-left relative">
+            <p className="text-[13px] text-indigo-950 leading-relaxed font-medium">
+              💡 <strong>Cách thức hoạt động:</strong> Hệ thống sẽ luân phiên tìm kiếm nhóm dựa trên danh sách từ khóa của bạn.
+              Khi đã vào được nhóm, AI sẽ thực thi theo một <strong>kịch bản tương tác</strong> ngẫu nhiên mà bạn đã bật để đăng một bài viết từ kho bài đăng vào nhóm.
+              Chạy luân phiên, rải đều đặn, mô phỏng giống với thao tác của con người.
+            </p>
+          </div>
 
           <div className="space-y-6 relative">
             {/* Section 1: Mục tiêu */}
@@ -762,7 +902,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
                  </button>
               ) : (
                  <div className="space-y-3">
-                   <button onClick={() => { setAutomationMode('post'); setIsRunning(true); }} disabled={posts.length === 0 || !keywords.trim()} className="group relative w-full overflow-hidden bg-emerald-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed">
+                   <button onClick={() => { setIsRunning(true); }} disabled={posts.length === 0 || !keywords.trim()} className="group relative w-full overflow-hidden bg-emerald-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed">
                       <Play className="w-5 h-5 fill-current transition-transform group-hover:scale-110" /> 
                       <span className="text-lg">KHỞI CHẠY CHIẾN DỊCH</span>
                    </button>
@@ -847,7 +987,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
   );
 }
 
-function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCommentTemplates, isRunning, setIsRunning, setAutomationMode, logs }: any) {
+function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCommentTemplates, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, isRunning, setIsRunning, logs }: any) {
   const endLogRef = useRef<HTMLDivElement>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -895,7 +1035,7 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 
           <div className="space-y-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 text-left">
             <p className="text-[13px] text-indigo-950 leading-relaxed font-medium">
-              💡 <strong>Cách thức hoạt động:</strong> Theo kịch bản mới, AI tạo ra các từ khóa liên quan như &quot;cần tìm nhà&quot;, &quot;cần mua đất&quot;... và search trực tiếp vào thanh công cụ tìm kiếm bên trong group để nhắm tới các khách hàng có nhu cầu tương tự. Sau đó tự động đối chiếu bài trong kho với bài rà quét được để đưa ra bình luận kèm SĐT.
+              💡 <strong>Cách thức hoạt động:</strong> Theo kịch bản mới, AI search thông minh trong group để nhắm tới khách hàng có nhu cầu. <strong>Đặc biệt:</strong> Nếu trong kho không có căn khớp hoàn toàn mức tài chính/yêu cầu, AI sẽ tự động lấy các căn <strong>cùng khu vực</strong> để chào hàng mở rộng, giúp bạn không bỏ sót khách.
             </p>
           </div>
 
@@ -912,6 +1052,24 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
                 value={keywords}
                 onChange={e => setKeywords(e.target.value)}
              />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5 mt-4">Nhịp độ tự động (Riêng biệt)</label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+               <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase">Nghỉ 2 chu kỳ (phút)</label>
+                  <input type="number" min="1" disabled={isRunning} value={intervalMinutes || ''} onChange={e => setIntervalMinutes(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-sm focus:ring-2 focus:ring-blue-500"/>
+               </div>
+               <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase">Sau lướt group (lần)</label>
+                  <input type="number" min="1" disabled={isRunning} value={postsBeforeBreak || ''} onChange={e => setPostsBeforeBreak(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-sm focus:ring-2 focus:ring-blue-500"/>
+               </div>
+               <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase">Nghỉ dài hạn (phút)</label>
+                  <input type="number" min="1" disabled={isRunning} value={breakMinutes || ''} onChange={e => setBreakMinutes(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-sm focus:ring-2 focus:ring-blue-500"/>
+               </div>
+            </div>
           </div>
 
           <div>
@@ -958,7 +1116,7 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
               <Square className="w-6 h-6 fill-current" /> DỪNG TIẾN TRÌNH
            </button>
         ) : (
-           <button onClick={() => { setAutomationMode('comment'); setIsRunning(true); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" disabled={posts.length === 0 || !keywords.trim() || !commentTemplates.trim()}>
+           <button onClick={() => { setIsRunning(true); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" disabled={posts.length === 0 || !keywords.trim() || !commentTemplates.trim()}>
              <Play className="w-6 h-6 fill-current" /> BẮT ĐẦU CHẠY BÌNH LUẬN AI
            </button>
         )}
