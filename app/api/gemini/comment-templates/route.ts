@@ -10,6 +10,8 @@ export async function POST(req: NextRequest) {
 Hãy tạo tối đa 5 câu mẫu bình luận (comment) ngắn gọn, tự nhiên và thân thiện để người môi giới có thể đính kèm ở cuối phần tư vấn cho khách hàng.
 Yêu cầu:
 - Kêu gọi khách hàng liên hệ qua số điện thoại/Zalo: ${phoneNumber}
+- TRÁNH tuyệt đối dùng các từ như "ưu đãi", "giảm giá", "khuyến mãi". Khi mua bán nhà đất chỉ có "thương lượng", "làm việc chính chủ", "thương lượng trực tiếp", "ép giá".
+- Chỉ tập trung vào việc mời khách đi xem nhà thực tế, xem sổ hồng, hoặc tư vấn thêm các căn phù hợp.
 - Mỗi câu trên 1 dòng duy nhất.
 - Không có số thứ tự ở đầu, không có gạch đầu dòng, không có bất kỳ ký tự thừa nào khác.
 - Tạo tối đa 5 mẫu.
