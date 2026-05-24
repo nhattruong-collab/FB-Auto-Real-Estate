@@ -847,10 +847,38 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
 
 function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCommentTemplates, isRunning, setIsRunning, setAutomationMode, logs }: any) {
   const endLogRef = useRef<HTMLDivElement>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     endLogRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
+
+  const handleGenerateTemplates = async () => {
+    if (!phoneNumber.trim()) {
+      alert('Vui lòng nhập số điện thoại (SĐT/Zalo) để tạo mẫu.');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const res = await fetch('/api/gemini/comment-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber })
+      });
+      const data = await res.json();
+      if (data.templates) {
+        setCommentTemplates(data.templates);
+      } else {
+        alert(data.error || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến server.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
@@ -885,13 +913,33 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-1.5 mt-4">Danh sách mẫu SĐT liên hệ (mỗi dòng 1 mẫu):</label>
-            <p className="text-xs text-slate-500 mb-2">Sẽ được đính vào cuối bình luận tư vấn của AI.</p>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5 mt-4">Tạo nhanh mẫu bình luận đính kèm SĐT bằng AI:</label>
+            <p className="text-xs text-slate-500 mb-2">Nhập SĐT/Zalo của bạn, AI sẽ tự động sinh các mẫu kêu gọi khách liên hệ tự nhiên.</p>
+            <div className="flex items-center gap-2 mb-3">
+              <input 
+                type="text" 
+                disabled={isRunning || isGenerating}
+                placeholder="VD: 0901234567" 
+                className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm" 
+                value={phoneNumber}
+                onChange={e => setPhoneNumber(e.target.value)}
+              />
+              <button
+                disabled={isRunning || isGenerating || !phoneNumber.trim()}
+                onClick={handleGenerateTemplates}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all text-sm shadow-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {isGenerating ? <span className="animate-pulse flex items-center gap-1"><Sparkles className="w-4 h-4"/> Đang gen...</span> : <><Sparkles className="w-4 h-4"/> Gen Comment Mẫu</>}
+              </button>
+            </div>
+            
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5">Danh sách mẫu bình luận hiện tại (mỗi dòng 1 mẫu):</label>
+            <p className="text-xs text-slate-500 mb-2">Bạn có thể tự chỉnh sửa trực tiếp nội dung dưới đây.</p>
             <textarea 
-              disabled={isRunning}
+              disabled={isRunning || isGenerating}
               rows={5}
               placeholder="Mẫu 1: Ib zalo 090xxxxx, mình có căn này rất khớp nhu cầu của bạn.&#10;Mẫu 2: Nhắn zalo 090xxxxx mình gửi sđt và sổ hồng xem nhé.&#10;..."
-              className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-800 font-mono leading-relaxed resize-none shadow-inner"
+              className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-800 font-mono leading-relaxed resize-none shadow-inner disabled:bg-slate-50"
               value={commentTemplates}
               onChange={e => setCommentTemplates(e.target.value)}
             />
