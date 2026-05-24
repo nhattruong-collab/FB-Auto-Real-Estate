@@ -225,6 +225,7 @@ export default function RealEstateAutoDashboard() {
 
 
 
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 font-sans text-gray-900">
       {/* Sidebar */}
@@ -596,7 +597,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
   }, [logs]);
 
   return (
-    <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
+    <div className="flex flex-col lg:flex-row gap-8 pb-8">
       {/* Settings Side */}
       <div className="w-full lg:w-5/12 flex flex-col shrink-0 gap-6 max-w-xl">
         <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm space-y-6 relative overflow-hidden">
@@ -786,7 +787,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
               );
             })
           )}
-          <div ref={endLogRef} className="h-4" />
+          {logs.length > 0 && <div ref={endLogRef} className="h-4" />}
         </div>
       </div>
     </div>
@@ -893,7 +894,7 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
               </div>
             ))
           )}
-          <div ref={endLogRef} className="h-4" />
+          {logs.length > 0 && <div ref={endLogRef} className="h-4" />}
         </div>
       </div>
     </div>
@@ -903,6 +904,13 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scenario[], setScenarios: (s: Scenario[]) => void, isRunning: boolean }) {
   const [scenarioPrompt, setScenarioPrompt] = useState("");
   const [isGeneratingScenario, setIsGeneratingScenario] = useState(false);
+  
+  const formatActionsAsLines = (actions: any[]) => {
+    return actions
+      .map((action) => action?.label || action?.type || '')
+      .filter(Boolean)
+      .join('\n');
+  };
 
   const handleGenerateScenario = async (customPrompt?: string) => {
     const promptToSend = customPrompt || scenarioPrompt;
@@ -957,6 +965,31 @@ function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scen
     "Thả lỏng thông minh: Đi dạo trang chủ 30 giây, lướt trong nhóm 1 phút rồi mới đăng bài để tránh robot"
   ];
 
+  const handleSuggestScenarioToTextbox = async () => {
+    setIsGeneratingScenario(true);
+    try {
+      const res = await fetch('/api/gemini/scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: '',
+          isRandom: true
+        })
+      });
+      const data = await res.json();
+      if (data.actions && Array.isArray(data.actions)) {
+        setScenarioPrompt(formatActionsAsLines(data.actions));
+      } else {
+        alert(data.error || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến server.');
+    } finally {
+      setIsGeneratingScenario(false);
+    }
+  };
+
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm max-w-4xl mx-auto">
       <div className="mb-6">
@@ -974,7 +1007,7 @@ function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scen
           <button
             type="button"
             disabled={isRunning || isGeneratingScenario}
-            onClick={() => handleGenerateScenario("")}
+            onClick={handleSuggestScenarioToTextbox}
             className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" /> AI tự tạo kịch bản ngẫu nhiên hợp lý
@@ -982,11 +1015,11 @@ function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scen
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3">
-          <input 
-             type="text"
+          <textarea
              disabled={isRunning || isGeneratingScenario}
-             placeholder="Hoặc tự mô tả: VD lướt FB 2 phút, like dạo, sau đó tìm group đăng bài..."
-             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
+             rows={5}
+             placeholder="Nhập kịch bản theo dạng mỗi thao tác 1 dòng. Ví dụ:&#10;Lướt News feed 60 giây&#10;Tìm group theo từ khóa&#10;Lướt trong group 30 giây&#10;Đăng bài"
+             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm resize-y min-h-[130px]"
              value={scenarioPrompt}
              onChange={e => setScenarioPrompt(e.target.value)}
           />
@@ -995,7 +1028,7 @@ function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scen
              onClick={() => handleGenerateScenario()}
              className="px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-900 disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 transition-colors text-sm"
           >
-            {isGeneratingScenario ? 'Đang tạo bằng AI...' : 'Tạo theo ý bạn'}
+            {isGeneratingScenario ? 'Đang tạo bằng AI...' : 'Lưu kịch bản'}
           </button>
         </div>
 
