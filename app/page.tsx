@@ -599,125 +599,128 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
     <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
       {/* Settings Side */}
       <div className="w-full lg:w-5/12 flex flex-col shrink-0 gap-6 max-w-xl">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
-            <Zap className="w-6 h-6 text-blue-500" />
+        <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-bl-full pointer-events-none" />
+          
+          <h2 className="text-xl font-bold flex items-center gap-2 relative text-slate-800">
+            <Zap className="w-5 h-5 text-blue-500" />
             Chiến dịch tự động
           </h2>
-          <p className="text-slate-500 text-sm mt-1">Thiết lập cấu hình cho tiến trình duyệt và đăng nội dung lên các nhóm.</p>
-        </div>
 
-        <div className="space-y-4">
-          {/* Card 1: Mục tiêu */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden">
-            <div className="flex items-center gap-2 mb-4">
-              <Target className="w-5 h-5 text-indigo-500" />
-              <h3 className="font-semibold text-slate-800">Mục tiêu & Kịch bản</h3>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Từ khóa Group</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                  <input 
-                    type="text" 
-                    disabled={isRunning}
-                    placeholder="Mua bán nhà đất, Bất động sản..." 
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm" 
-                    value={keywords}
-                    onChange={e => setKeywords(e.target.value)}
-                  />
-                </div>
+          <div className="space-y-6 relative">
+            {/* Section 1: Mục tiêu */}
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="w-5 h-5 text-indigo-500" />
+                <h3 className="font-semibold text-slate-800">Mục tiêu & Kịch bản</h3>
               </div>
-
-              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50 flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Kịch bản tương tác</span>
-                  <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-indigo-100 text-indigo-600 font-bold shadow-sm">{scenarios.filter((s: any) => s.isActive).length} kịch bản</span>
-                </div>
-                <p className="text-[11px] text-indigo-700/80 leading-relaxed">
-                  Trí tuệ nhân tạo sẽ lấy ngẫu nhiên 1 kịch bản để thực thi mỗi chu kỳ, mô phỏng hành vi người thật.
-                </p>
-                <button 
-                  onClick={() => setActiveTab('scenarios')} 
-                  className="text-xs text-indigo-600 font-semibold hover:text-indigo-800 w-max"
-                >
-                  Thiết lập kịch bản →
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Chu kỳ */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Timer className="w-5 h-5 text-emerald-500" />
-              <h3 className="font-semibold text-slate-800">Nhịp độ tự động</h3>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nghỉ giữa 2 chu kỳ</label>
-                <div className="relative">
-                  <input 
-                    type="number" min="1" disabled={isRunning}
-                    className="w-full px-4 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
-                    value={intervalMinutes || ''} onChange={e => setIntervalMinutes(Number(e.target.value))}
-                  />
-                  <span className="absolute right-4 top-2 text-slate-400 text-sm">phút</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide truncate">Sau khi đăng</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Từ khóa Group</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <input 
+                      type="text" 
+                      disabled={isRunning}
+                      placeholder="Mua bán nhà đất, Bất động sản..." 
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm" 
+                      value={keywords}
+                      onChange={e => setKeywords(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50 flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Kịch bản tương tác</span>
+                    <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-indigo-100 text-indigo-600 font-bold shadow-sm">{scenarios.filter((s: any) => s.isActive).length} kịch bản</span>
+                  </div>
+                  <p className="text-[11px] text-indigo-700/80 leading-relaxed">
+                    Trí tuệ nhân tạo sẽ lấy ngẫu nhiên 1 kịch bản để thực thi mỗi chu kỳ, mô phỏng hành vi người thật.
+                  </p>
+                  <button 
+                    onClick={() => setActiveTab('scenarios')} 
+                    className="text-xs text-indigo-600 font-semibold hover:text-indigo-800 w-max"
+                  >
+                    Thiết lập kịch bản →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* Section 2: Chu kỳ */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Timer className="w-5 h-5 text-emerald-500" />
+                <h3 className="font-semibold text-slate-800">Nhịp độ tự động</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nghỉ giữa 2 chu kỳ</label>
                   <div className="relative">
                     <input 
                       type="number" min="1" disabled={isRunning}
-                      className="w-full px-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
-                      value={postsBeforeBreak || ''} onChange={e => setPostsBeforeBreak(Number(e.target.value))}
+                      className="w-full px-4 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
+                      value={intervalMinutes || ''} onChange={e => setIntervalMinutes(Number(e.target.value))}
                     />
-                    <span className="absolute right-3 top-2 text-slate-400 text-sm">bài</span>
+                    <span className="absolute right-4 top-2 text-slate-400 text-sm">phút</span>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide truncate">Nghỉ dài hạn</label>
-                  <div className="relative">
-                    <input 
-                      type="number" min="1" disabled={isRunning}
-                      className="w-full px-3 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
-                      value={breakMinutes || ''} onChange={e => setBreakMinutes(Number(e.target.value))}
-                    />
-                    <span className="absolute right-3 top-2 text-slate-400 text-sm">phút</span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide truncate">Sau khi đăng</label>
+                    <div className="relative">
+                      <input 
+                        type="number" min="1" disabled={isRunning}
+                        className="w-full px-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
+                        value={postsBeforeBreak || ''} onChange={e => setPostsBeforeBreak(Number(e.target.value))}
+                      />
+                      <span className="absolute right-3 top-2 text-slate-400 text-sm">bài</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide truncate">Nghỉ dài hạn</label>
+                    <div className="relative">
+                      <input 
+                        type="number" min="1" disabled={isRunning}
+                        className="w-full px-3 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
+                        value={breakMinutes || ''} onChange={e => setBreakMinutes(Number(e.target.value))}
+                      />
+                      <span className="absolute right-3 top-2 text-slate-400 text-sm">phút</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Start / Stop Section */}
-        <div className="pt-2">
-          {isRunning ? (
-             <button onClick={() => setIsRunning(false)} className="group relative w-full overflow-hidden bg-red-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-red-600 transition-all shadow-[0_8px_30px_rgb(239,68,68,0.3)] hover:shadow-[0_8px_30px_rgb(239,68,68,0.5)] active:scale-[0.98]">
-                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] animate-[shimmer_2s_infinite]" />
-                <Square className="w-5 h-5 fill-current relative z-10" /> 
-                <span className="relative z-10 text-lg">DỪNG TIẾN TRÌNH</span>
-             </button>
-          ) : (
-             <div className="space-y-3">
-               <button onClick={() => { setAutomationMode('post'); setIsRunning(true); }} disabled={posts.length === 0 || !keywords.trim()} className="group relative w-full overflow-hidden bg-emerald-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed">
-                  <Play className="w-5 h-5 fill-current transition-transform group-hover:scale-110" /> 
-                  <span className="text-lg">KHỞI CHẠY CHIẾN DỊCH</span>
-               </button>
-               {posts.length === 0 && (
-                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-xl text-xs font-medium">
-                   <AlertCircle className="w-4 h-4" /> Bạn cần thêm bài viết vào kho để có thể chạy.
+            
+            {/* Start / Stop Section */}
+            <div className="pt-2">
+              {isRunning ? (
+                 <button onClick={() => setIsRunning(false)} className="group relative w-full overflow-hidden bg-red-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-red-600 transition-all shadow-[0_8px_30px_rgb(239,68,68,0.3)] hover:shadow-[0_8px_30px_rgb(239,68,68,0.5)] active:scale-[0.98]">
+                    <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] animate-[shimmer_2s_infinite]" />
+                    <Square className="w-5 h-5 fill-current relative z-10" /> 
+                    <span className="relative z-10 text-lg">DỪNG TIẾN TRÌNH</span>
+                 </button>
+              ) : (
+                 <div className="space-y-3">
+                   <button onClick={() => { setAutomationMode('post'); setIsRunning(true); }} disabled={posts.length === 0 || !keywords.trim()} className="group relative w-full overflow-hidden bg-emerald-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed">
+                      <Play className="w-5 h-5 fill-current transition-transform group-hover:scale-110" /> 
+                      <span className="text-lg">KHỞI CHẠY CHIẾN DỊCH</span>
+                   </button>
+                   {posts.length === 0 && (
+                     <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-xl text-xs font-medium">
+                       <AlertCircle className="w-4 h-4" /> Bạn cần thêm bài viết vào kho để có thể chạy.
+                     </div>
+                   )}
                  </div>
-               )}
-             </div>
-          )}
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
