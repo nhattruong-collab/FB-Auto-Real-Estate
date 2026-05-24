@@ -293,10 +293,10 @@ async function runAIAutoCommentMatch(page, posts, commentTemplates, logCallback)
 }
 
 async function runAutomation(config, logCallback, postCount = 0) {
-  const { keywords, posts, intervalMinutes, postsBeforeBreak = 10, breakMinutes = 30, scenarios, autoCommentEnabled, commentTemplates } = config;
+  const { mode, keywords, posts, intervalMinutes, postsBeforeBreak = 10, breakMinutes = 30, scenarios, commentTemplates } = config;
   shouldStop = false;
   
-  logCallback(`[HỆ THỐNG] Chuẩn bị bộ máy tự động hóa...`);
+  logCallback(`[HỆ THỐNG] Chuẩn bị bộ máy tự động hóa chạy nhánh: ${mode === 'comment' ? 'Bình luận AI' : 'Đăng bài'}...`);
   logCallback(`[HỆ THỐNG] Đang kết nối với Google Chrome của bạn để dùng tài khoản FB hiện tại...`);
 
   let browser;
@@ -315,41 +315,48 @@ async function runAutomation(config, logCallback, postCount = 0) {
     }
 
     const post = posts && posts.length > 0 ? posts[Math.floor(Math.random() * posts.length)] : null;
-    if (!post && currentScenario.actions.some(a => a.type === 'post_to_current_group')) {
+    if (!post && mode !== 'comment' && currentScenario.actions.some(a => a.type === 'post_to_current_group')) {
        logCallback(`[CẢNH BÁO] Kịch bản yêu cầu đăng bài nhưng bạn chưa chọn bài viết nào! Sẽ bỏ qua thao tác đăng.`);
     }
 
     const page = await browser.newPage();
     
-    logCallback(`[KỊCH BẢN] Đang chạy kịch bản: ${currentScenario.name || 'Mặc định'}`);
-    
-    for (let action of currentScenario.actions) {
-       if (shouldStop) break;
-       try {
-         switch (action.type) {
-           case 'scroll_home':
-             await actionScrollHome(page, action.durationSeconds || 60, logCallback);
-             break;
-           case 'search_and_pick_group':
-             await actionSearchAndPickGroup(page, keywords, logCallback); if (autoCommentEnabled) { await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback); };
-             break;
-           case 'scroll_current_page':
-             await actionScrollCurrentPage(page, action.durationSeconds || 30, logCallback);
-             break;
-           case 'post_to_current_group':
-             await actionPostToCurrentGroup(page, post, logCallback);
-             break;
-           default:
-             logCallback(`[BỎ QUA] Hành động không hỗ trợ: ${action.type}`);
-         }
-       } catch (err) {
-         if (err.message === "STOPPED_BY_USER") {
-            logCallback(`[HỆ THỐNG] Đã nhận lệnh ngắt giữa chừng kịch bản.`);
-            break;
-         } else {
-            logCallback(`[LỖI] Xảy ra lỗi khi chạy hành động ${action.type}: ${err.message}`);
-         }
-       }
+    if (mode === 'comment') {
+        logCallback(`[KỊCH BẢN] Đang chạy kịch bản riêng: Tự Động Bình Luận AI theo tư vấn bám đuổi.`);
+        await actionSearchAndPickGroup(page, keywords, logCallback);
+        if (!shouldStop) {
+           await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback);
+        }
+    } else {
+        logCallback(`[KỊCH BẢN] Đang chạy kịch bản: ${currentScenario.name || 'Mặc định'}`);
+        for (let action of currentScenario.actions) {
+           if (shouldStop) break;
+           try {
+             switch (action.type) {
+               case 'scroll_home':
+                 await actionScrollHome(page, action.durationSeconds || 60, logCallback);
+                 break;
+               case 'search_and_pick_group':
+                 await actionSearchAndPickGroup(page, keywords, logCallback); 
+                 break;
+               case 'scroll_current_page':
+                 await actionScrollCurrentPage(page, action.durationSeconds || 30, logCallback);
+                 break;
+               case 'post_to_current_group':
+                 await actionPostToCurrentGroup(page, post, logCallback);
+                 break;
+               default:
+                 logCallback(`[BỎ QUA] Hành động không hỗ trợ: ${action.type}`);
+             }
+           } catch (err) {
+             if (err.message === "STOPPED_BY_USER") {
+                logCallback(`[HỆ THỐNG] Đã nhận lệnh ngắt giữa chừng kịch bản.`);
+                break;
+             } else {
+                logCallback(`[LỖI] Xảy ra lỗi khi chạy hành động ${action.type}: ${err.message}`);
+             }
+           }
+        }
     }
 
     logCallback(`[HỆ THỐNG] Kịch bản bot vòng này đã kết thúc. Đang dọn dẹp tab...`);

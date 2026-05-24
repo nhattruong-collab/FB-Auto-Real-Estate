@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, FileText, Sparkles, Send, Play, Square, 
   Trash2, Plus, Image as ImageIcon, CheckCircle2,
-  Clock, Activity, Facebook, Settings, Search, Pencil
+  Clock, Activity, Facebook, Settings, Search, Pencil, MessageSquare,
+  Timer, Target, Zap, AlertCircle, Terminal, History, PauseCircle
 } from 'lucide-react';
 
 // --- Types & Globals ---
@@ -72,7 +73,7 @@ function getMockSteps(keywords: string, autoCommentEnabled: boolean) {
 }
 
 export default function RealEstateAutoDashboard() {
-  const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation' | 'scenarios'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation' | 'scenarios' | 'autocomment'>('posts');
   
   // App State
   const [posts, setPosts] = useState<Post[]>([]);
@@ -91,7 +92,6 @@ export default function RealEstateAutoDashboard() {
       isActive: true
     }
   ]);
-  const [autoCommentEnabled, setAutoCommentEnabled] = useState(false);
   const [commentTemplates, setCommentTemplates] = useState(
     "Ib Zalo 0901234567, mình có giỏ hàng nhiều sản phẩm đẹp phù hợp nhu cầu.\nNhắn Zalo 0901234567 mình gửi thông tin chi tiết và sổ hồng nhé!\nIb Zalo 0901234567 mình tư vấn tìm căn phù hợp nhất nha."
   );
@@ -99,6 +99,7 @@ export default function RealEstateAutoDashboard() {
   
   // Engine State
   const [isRunning, setIsRunning] = useState(false);
+  const [automationMode, setAutomationMode] = useState<'post' | 'comment'>('post');
   const [logs, setLogs] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(0);
 
@@ -109,12 +110,10 @@ export default function RealEstateAutoDashboard() {
     const savedPosts = localStorage.getItem('re_posts');
     const savedKey = localStorage.getItem('re_keywords');
     const savedScenarios = localStorage.getItem('re_scenarios');
-    const savedCommentEnabled = localStorage.getItem('re_auto_comment_enabled');
     const savedCommentTemplates = localStorage.getItem('re_comment_templates');
     if (savedPosts) setPosts(JSON.parse(savedPosts));
     if (savedKey) setKeywords(savedKey);
     if (savedScenarios) setScenarios(JSON.parse(savedScenarios));
-    if (savedCommentEnabled) setAutoCommentEnabled(savedCommentEnabled === 'true');
     if (savedCommentTemplates) setCommentTemplates(savedCommentTemplates);
   }, []);
 
@@ -123,9 +122,8 @@ export default function RealEstateAutoDashboard() {
     localStorage.setItem('re_posts', JSON.stringify(posts));
     localStorage.setItem('re_keywords', keywords);
     localStorage.setItem('re_scenarios', JSON.stringify(scenarios));
-    localStorage.setItem('re_auto_comment_enabled', String(autoCommentEnabled));
     localStorage.setItem('re_comment_templates', commentTemplates);
-  }, [posts, keywords, scenarios, autoCommentEnabled, commentTemplates]);
+  }, [posts, keywords, scenarios, commentTemplates]);
 
   const addPost = (content: string, images: string[] = []) => {
     const newPost = { id: Date.now().toString(), content, images, createdAt: Date.now() };
@@ -165,13 +163,13 @@ export default function RealEstateAutoDashboard() {
       // Nếu chạy trên Electron (App Desktop), gọi Backend Node.js thực thi thật
       if (typeof window !== 'undefined' && window.electronAPI) {
           window.electronAPI.startAutomation({
+             mode: automationMode,
              keywords,
              posts,
              intervalMinutes,
              postsBeforeBreak,
              breakMinutes,
              scenarios: scenarios.filter(s => s.isActive),
-             autoCommentEnabled,
              commentTemplates
           }).then(res => {
             if (!res.success) {
@@ -186,7 +184,7 @@ export default function RealEstateAutoDashboard() {
       else {
         stepIndexRef.current = 0;
         countdownRef.current = 0;
-        const steps = getMockSteps(keywords, autoCommentEnabled);
+        const steps = getMockSteps(keywords, automationMode === 'comment');
         
         const runCycle = () => {
           if (stepIndexRef.current < steps.length) {
@@ -234,7 +232,7 @@ export default function RealEstateAutoDashboard() {
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-2 mb-2">
             <Facebook className="w-8 h-8 text-blue-500" />
-            <h1 className="text-xl font-bold">AutoFB Pro</h1>
+            <h1 className="text-xl font-bold">Auto Post FB AI</h1>
           </div>
           <p className="text-xs text-slate-400">Tự động hóa đăng bài Bất Động Sản</p>
           {isMounted && !window.electronAPI && (
@@ -276,6 +274,14 @@ export default function RealEstateAutoDashboard() {
             <Settings className="w-5 h-5" />
             <span className="hidden md:inline">Kịch bản tương tác</span>
           </button>
+
+          <button 
+            onClick={() => setActiveTab('autocomment')}
+            className={`flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-lg transition-colors whitespace-nowrap ${activeTab === 'autocomment' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="hidden md:inline">Tự động bình luận</span>
+          </button>
         </nav>
       </aside>
 
@@ -299,12 +305,9 @@ export default function RealEstateAutoDashboard() {
               setScenarios={setScenarios}
               isRunning={isRunning}
               setIsRunning={setIsRunning}
+              setAutomationMode={setAutomationMode}
               logs={logs}
               setActiveTab={setActiveTab}
-              autoCommentEnabled={autoCommentEnabled}
-              setAutoCommentEnabled={setAutoCommentEnabled}
-              commentTemplates={commentTemplates}
-              setCommentTemplates={setCommentTemplates}
             />
           )}
           {activeTab === 'scenarios' && (
@@ -312,6 +315,19 @@ export default function RealEstateAutoDashboard() {
               scenarios={scenarios}
               setScenarios={setScenarios}
               isRunning={isRunning}
+            />
+          )}
+          {activeTab === 'autocomment' && (
+            <AutoCommentView
+              keywords={keywords}
+              setKeywords={setKeywords}
+              posts={posts}
+              commentTemplates={commentTemplates}
+              setCommentTemplates={setCommentTemplates}
+              isRunning={isRunning}
+              setIsRunning={setIsRunning}
+              setAutomationMode={setAutomationMode}
+              logs={logs}
             />
           )}
         </div>
@@ -572,8 +588,7 @@ function BotIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, logs, setActiveTab, autoCommentEnabled, setAutoCommentEnabled, commentTemplates, setCommentTemplates }: any) {
-  
+function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setIntervalMinutes, postsBeforeBreak, setPostsBeforeBreak, breakMinutes, setBreakMinutes, scenarios, setScenarios, isRunning, setIsRunning, setAutomationMode, logs, setActiveTab }: any) {
   const endLogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -583,147 +598,252 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
   return (
     <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
       {/* Settings Side */}
-      <div className="w-full lg:w-5/12 flex flex-col shrink-0 gap-6">
+      <div className="w-full lg:w-5/12 flex flex-col shrink-0 gap-6 max-w-xl">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Tiến trình tự động</h2>
-          <p className="text-gray-500 text-sm mt-1">Cấu hình bot tự động duyệt và đăng nội dung mồi lên các group Facebook.</p>
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
+            <Zap className="w-6 h-6 text-blue-500" />
+            Chiến dịch tự động
+          </h2>
+          <p className="text-slate-500 text-sm mt-1">Thiết lập cấu hình cho tiến trình duyệt và đăng nội dung lên các nhóm.</p>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Từ khóa tìm kiếm Group</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-              <input 
-                 type="text" 
-                 disabled={isRunning}
-                 placeholder="VD: Mua bán nhà đất Hà Nội, BĐS..." 
-                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 transition-colors outline-none" 
-                 value={keywords}
-                 onChange={e => setKeywords(e.target.value)}
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-2 leading-relaxed">Bot sẽ dùng từ khóa này tìm kiếm các Group mục tiêu, tham gia (nếu cần) và tiến hành đăng bài.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Kịch bản tương tác (Bốc ngẫu nhiên)</label>
-            <div className="bg-slate-50 p-4 border border-gray-200 rounded-lg text-sm text-gray-600 space-y-2">
-              <p>Hiện tại có <span className="font-bold text-gray-900">{scenarios.filter((s: any) => s.isActive).length}</span> kịch bản đang kích hoạt.</p>
-              <p className="text-[11px] text-gray-500 leading-relaxed">Khi chiến dịch tự động diễn ra, hệ thống sẽ bốc ngẫu nhiên 1 kịch bản trong số đó cho mỗi chu kỳ để tránh robot bị Facebook quét.</p>
-              <button 
-                type="button"
-                onClick={() => setActiveTab('scenarios')} 
-                className="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition-colors mt-1 focus:outline-none"
-              >
-                Cấu hình thêm tại Tab Kịch bản →
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Khoảng nghỉ giữa 2 chu kỳ kịch bản</label>
-            <div className="relative">
-              <input 
-                 type="number"
-                 min="1"
-                 disabled={isRunning}
-                 className="w-full px-4 pr-16 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
-                 value={intervalMinutes || ''}
-                 onChange={e => setIntervalMinutes(Number(e.target.value))}
-              />
-              <span className="absolute right-4 top-2.5 text-gray-500 pointer-events-none">phút</span>
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Đăng số lượng bài</label>
-              <div className="relative">
-                <input 
-                   type="number"
-                   min="1"
-                   disabled={isRunning}
-                   className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
-                   value={postsBeforeBreak || ''}
-                   onChange={e => setPostsBeforeBreak(Number(e.target.value))}
-                />
-              </div>
+        <div className="space-y-4">
+          {/* Card 1: Mục tiêu */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="w-5 h-5 text-indigo-500" />
+              <h3 className="font-semibold text-slate-800">Mục tiêu & Kịch bản</h3>
             </div>
             
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Thì nghỉ dài</label>
-              <div className="relative">
-                <input 
-                   type="number"
-                   min="1"
-                   disabled={isRunning}
-                   className="w-full px-4 pr-14 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 outline-none"
-                   value={breakMinutes || ''}
-                   onChange={e => setBreakMinutes(Number(e.target.value))}
-                />
-                <span className="absolute right-3 top-2.5 text-gray-500 pointer-events-none text-sm">phút</span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-             <label className="block text-sm font-semibold text-gray-800 justify-between items-center flex mb-2">
-               Bài viết sẽ đăng
-             </label>
-             <div className="p-4 bg-indigo-50 text-indigo-900 text-sm rounded-lg border border-indigo-100 flex items-start gap-3">
-               <FileText className="w-5 h-5 shrink-0 text-indigo-500 mt-0.5" />
-               <div>
-                  <span className="font-semibold block mb-0.5">Kho hiện tại: {posts.length} bài.</span>
-                  Hệ thống sẽ bốc xuất ngẫu nhiên 2-3 bài viết (chưa từng đăng hôm nay) để đăng luân phiên lên các group, giúp bài không bị trùng lặp.
-               </div>
-             </div>
-          </div>
-
-          {/* AI Auto Comment Settings Card */}
-          <div className="border-t border-gray-150 pt-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
-                <div>
-                  <label className="block text-sm font-bold text-gray-800">Tự động bình luận bằng AI (Auto Match)</label>
-                  <span className="block text-xs text-slate-500">Tìm bài viết hỏi mua/cần mua để AI tư vấn tự động</span>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Từ khóa Group</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    disabled={isRunning}
+                    placeholder="Mua bán nhà đất, Bất động sản..." 
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm" 
+                    value={keywords}
+                    onChange={e => setKeywords(e.target.value)}
+                  />
                 </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  disabled={isRunning}
-                  checked={autoCommentEnabled}
-                  onChange={e => setAutoCommentEnabled(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-              </label>
-            </div>
 
-            {autoCommentEnabled && (
-              <div className="space-y-3 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 p-4 rounded-xl border border-indigo-100 animate-fadeIn text-left">
-                <p className="text-[11px] text-indigo-950 leading-relaxed font-medium">
-                  💡 Cách thức hoạt động: AI quét các bài dạo trong Group, lọc ra bài tìm kiếm bđs của khách (Ví dụ: &quot;Cần tìm đất dưới 4 tỷ...&quot;), tự động đối chiếu các bài đăng trong kho của bạn để tìm căn phù hợp nhất, ghép lời tư vấn thông minh bám đuổi &amp; đính kèm mẫu Zalo/Sđt liên lạc được đặt sẵn dưới đây!
+              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Kịch bản tương tác</span>
+                  <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-indigo-100 text-indigo-600 font-bold shadow-sm">{scenarios.filter((s: any) => s.isActive).length} kịch bản</span>
+                </div>
+                <p className="text-[11px] text-indigo-700/80 leading-relaxed">
+                  Trí tuệ nhân tạo sẽ lấy ngẫu nhiên 1 kịch bản để thực thi mỗi chu kỳ, mô phỏng hành vi người thật.
                 </p>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Danh sách mẫu SĐT liên hệ cuối bình luận (mỗi dòng 1 mẫu):</label>
-                  <textarea 
-                    disabled={isRunning}
-                    rows={4}
-                    placeholder="Mẫu 1: Ib zalo 090xxxxx, mình có căn này rất khớp nhu cầu của bạn.&#10;Mẫu 2: Nhắn zalo 090xxxxx mình gửi sđt và sổ hồng xem nhé.&#10;..."
-                    className="w-full p-2.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-700 font-mono leading-relaxed"
-                    value={commentTemplates}
-                    onChange={e => setCommentTemplates(e.target.value)}
+                <button 
+                  onClick={() => setActiveTab('scenarios')} 
+                  className="text-xs text-indigo-600 font-semibold hover:text-indigo-800 w-max"
+                >
+                  Thiết lập kịch bản →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Chu kỳ */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Timer className="w-5 h-5 text-emerald-500" />
+              <h3 className="font-semibold text-slate-800">Nhịp độ tự động</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nghỉ giữa 2 chu kỳ</label>
+                <div className="relative">
+                  <input 
+                    type="number" min="1" disabled={isRunning}
+                    className="w-full px-4 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
+                    value={intervalMinutes || ''} onChange={e => setIntervalMinutes(Number(e.target.value))}
                   />
-                  <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
-                    <span>Hệ thống sẽ chọn ngẫu nhiên 1 dòng để tránh bị spam.</span>
-                    <span className="font-semibold text-slate-500">Số mẫu: {commentTemplates.split('\n').filter((t: string) => t.trim()).length}</span>
+                  <span className="absolute right-4 top-2 text-slate-400 text-sm">phút</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide truncate">Sau khi đăng</label>
+                  <div className="relative">
+                    <input 
+                      type="number" min="1" disabled={isRunning}
+                      className="w-full px-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
+                      value={postsBeforeBreak || ''} onChange={e => setPostsBeforeBreak(Number(e.target.value))}
+                    />
+                    <span className="absolute right-3 top-2 text-slate-400 text-sm">bài</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide truncate">Nghỉ dài hạn</label>
+                  <div className="relative">
+                    <input 
+                      type="number" min="1" disabled={isRunning}
+                      className="w-full px-3 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition-all outline-none text-sm font-medium"
+                      value={breakMinutes || ''} onChange={e => setBreakMinutes(Number(e.target.value))}
+                    />
+                    <span className="absolute right-3 top-2 text-slate-400 text-sm">phút</span>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Start / Stop Section */}
+        <div className="pt-2">
+          {isRunning ? (
+             <button onClick={() => setIsRunning(false)} className="group relative w-full overflow-hidden bg-red-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-red-600 transition-all shadow-[0_8px_30px_rgb(239,68,68,0.3)] hover:shadow-[0_8px_30px_rgb(239,68,68,0.5)] active:scale-[0.98]">
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] animate-[shimmer_2s_infinite]" />
+                <Square className="w-5 h-5 fill-current relative z-10" /> 
+                <span className="relative z-10 text-lg">DỪNG TIẾN TRÌNH</span>
+             </button>
+          ) : (
+             <div className="space-y-3">
+               <button onClick={() => { setAutomationMode('post'); setIsRunning(true); }} disabled={posts.length === 0 || !keywords.trim()} className="group relative w-full overflow-hidden bg-emerald-500 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-[0_8px_30px_rgb(16,185,129,0.3)] hover:shadow-[0_8px_30px_rgb(16,185,129,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed">
+                  <Play className="w-5 h-5 fill-current transition-transform group-hover:scale-110" /> 
+                  <span className="text-lg">KHỞI CHẠY CHIẾN DỊCH</span>
+               </button>
+               {posts.length === 0 && (
+                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-xl text-xs font-medium">
+                   <AlertCircle className="w-4 h-4" /> Bạn cần thêm bài viết vào kho để có thể chạy.
+                 </div>
+               )}
+             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Terminal logs side */}
+      <div className="w-full lg:flex-1 h-[500px] lg:h-auto bg-[#0a0a0c] rounded-2xl border border-slate-800 flex flex-col shadow-2xl overflow-hidden font-mono shrink-0 lg:shrink ring-1 ring-white/5 relative">
+        {/* Terminal Header */}
+        <div className="bg-[#121216] border-b border-slate-800/80 px-4 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500" />
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+            </div>
+            <div className="flex items-center gap-2 ml-4 px-2 py-1 bg-slate-800/50 rounded-md">
+              <Terminal className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-300 text-xs tracking-wider">Terminal</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {isRunning ? (
+              <span className="flex items-center gap-2 text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full border border-emerald-400/20">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                RUNNING
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-800/50 px-2 py-1 rounded-full border border-slate-700">
+                <PauseCircle className="w-3.5 h-3.5" />
+                IDLE
+              </span>
             )}
+          </div>
+        </div>
+
+        {/* Terminal Body */}
+        <div className="p-5 overflow-y-auto flex-1 text-[13px] tracking-tight leading-relaxed selection:bg-blue-500/30">
+          {logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-3">
+              <History className="w-8 h-8 opacity-20" />
+              <p>Chưa có log hệ thống</p>
+            </div>
+          ) : (
+            logs.map((log: string, idx: number) => {
+               const isWarning = log.includes('Chờ') || log.includes('ngủ') || log.includes('LỖI');
+               const isSuccess = log.includes('THÀNH CÔNG');
+               const isAction = log.includes('HÀNH ĐỘNG');
+               const isSystem = log.includes('HỆ THỐNG');
+               
+               let colorClass = 'text-slate-400';
+               if (isWarning) colorClass = 'text-amber-400/90';
+               if (isSuccess) colorClass = 'text-emerald-400';
+               if (isAction) colorClass = 'text-cyan-400/90';
+               if (isSystem) colorClass = 'text-indigo-400/90';
+
+               return (
+                <div key={idx} className={`mb-2 font-medium flex gap-3 hover:bg-white/5 px-2 py-1 -mx-2 rounded transition-colors ${colorClass}`}>
+                  <span className="text-slate-600 shrink-0 select-none opacity-50">{new Date().toLocaleTimeString('en-US', { hour12: false })}</span>
+                  <span>{log}</span>
+                </div>
+              );
+            })
+          )}
+          <div ref={endLogRef} className="h-4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCommentTemplates, isRunning, setIsRunning, setAutomationMode, logs }: any) {
+  const endLogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endLogRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  return (
+    <div className="flex h-full flex-col lg:flex-row gap-8 pb-8">
+      {/* Settings side */}
+      <div className="flex-1 space-y-6 shrink-0 lg:shrink max-w-xl">
+        <div className="bg-white p-6 rounded-xl border border-gray-200/60 shadow-sm space-y-5 relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-bl-full pointer-events-none" />
+          
+          <h2 className="text-xl font-bold flex items-center gap-2 relative text-slate-800">
+            <MessageSquare className="w-5 h-5 text-blue-500" /> Cài đặt bình luận AI
+          </h2>
+
+          <div className="space-y-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 text-left">
+            <p className="text-[13px] text-indigo-950 leading-relaxed font-medium">
+              💡 <strong>Cách thức hoạt động:</strong> AI quét các bài dạo trong Group theo từ khóa, lọc ra bài tìm kiếm bđs của khách (Ví dụ: &quot;Cần tìm đất dưới 4 tỷ...&quot;), tự động đối chiếu các bài đăng trong kho của bạn để tìm căn phù hợp nhất, ghép lời tư vấn bám đuổi &amp; đính kèm mẫu Zalo/SĐT.
+            </p>
+          </div>
+
+          <div>
+             <label className="block text-sm font-semibold text-gray-800 mb-1.5 flex items-center gap-1.5">
+               Từ khóa Group (Nhóm) quét bài <span className="text-red-500">*</span>
+             </label>
+             <p className="text-xs text-slate-500 mb-2">Bot sẽ tìm nhóm FB dựa trên từ khóa này để đọc bài khách đăng.</p>
+             <input 
+                type="text" 
+                disabled={isRunning}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-gray-50"
+                placeholder="VD: Mua bán nhà đất Hà Nội"
+                value={keywords}
+                onChange={e => setKeywords(e.target.value)}
+             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5 mt-4">Danh sách mẫu SĐT liên hệ (mỗi dòng 1 mẫu):</label>
+            <p className="text-xs text-slate-500 mb-2">Sẽ được đính vào cuối bình luận tư vấn của AI.</p>
+            <textarea 
+              disabled={isRunning}
+              rows={5}
+              placeholder="Mẫu 1: Ib zalo 090xxxxx, mình có căn này rất khớp nhu cầu của bạn.&#10;Mẫu 2: Nhắn zalo 090xxxxx mình gửi sđt và sổ hồng xem nhé.&#10;..."
+              className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-800 font-mono leading-relaxed resize-none shadow-inner"
+              value={commentTemplates}
+              onChange={e => setCommentTemplates(e.target.value)}
+            />
+            <div className="flex justify-between items-center text-xs text-slate-500 mt-2">
+              <span>🤖 Tránh bị spam FB bằng cách thêm nhiều mẫu khác nhau.</span>
+              <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">Số mẫu: {commentTemplates.split('\n').filter((t: string) => t.trim()).length}</span>
+            </div>
           </div>
         </div>
 
@@ -733,11 +853,11 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
               <Square className="w-6 h-6 fill-current" /> DỪNG TIẾN TRÌNH
            </button>
         ) : (
-           <button onClick={() => setIsRunning(true)} className="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" disabled={posts.length === 0}>
-             <Play className="w-6 h-6 fill-current" /> BẮT ĐẦU CHẠY BOT (MỞ CHROME)
+           <button onClick={() => { setAutomationMode('comment'); setIsRunning(true); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" disabled={posts.length === 0 || !keywords.trim() || !commentTemplates.trim()}>
+             <Play className="w-6 h-6 fill-current" /> BẮT ĐẦU CHẠY BÌNH LUẬN AI
            </button>
         )}
-        {!isRunning && posts.length === 0 && <p className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded-lg">Bạn cần thêm bài viết vào kho đẻ chạy được Bot.</p>}
+        {!isRunning && posts.length === 0 && <p className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded-lg">Cần thêm bài viết vào kho để AI có dữ liệu so khớp nhà.</p>}
       </div>
 
       {/* Terminal logs side */}
@@ -748,34 +868,31 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
             <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
             <div className="w-3 h-3 rounded-full bg-green-500/80" />
           </div>
-          <span className="text-gray-400 text-xs ml-3 tracking-wider uppercase">AutoFB Terminal</span>
-          {isRunning && <span className="ml-auto flex h-2.5 w-2.5 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-          </span>}
+          <span className="text-gray-400 text-xs ml-2 font-medium tracking-wide">auto_comment.exe</span>
+          <div className="ml-auto text-[10px] text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">LIVE SERVER</div>
         </div>
-        <div className="p-5 overflow-y-auto flex-1 text-sm tracking-tight leading-relaxed">
-          {logs.map((log: string, idx: number) => {
-             const isWarning = log.includes('Chờ') || log.includes('ngủ') || log.includes('LỖI');
-             const isSuccess = log.includes('THÀNH CÔNG');
-             const isAction = log.includes('HÀNH ĐỘNG');
-             const isSystem = log.includes('HỆ THỐNG');
-             let colorClass = 'text-gray-300';
-             if (isWarning) colorClass = 'text-yellow-400/90';
-             if (isSuccess) colorClass = 'text-green-400';
-             if (isAction) colorClass = 'text-cyan-400/90';
-             if (isSystem) colorClass = 'text-purple-400/90';
-
-             return (
-              <div key={idx} className={`mb-1.5 ${colorClass}`}>
+        
+        <div className="flex-1 p-4 overflow-y-auto space-y-1">
+          {logs.length === 0 ? (
+            <div className="text-gray-500 text-sm flex items-center justify-center h-full gap-2">
+               <span className="animate-pulse">Chưa có tiến trình đang chạy...</span>
+            </div>
+          ) : (
+            logs.map((log: string, i: number) => (
+              <div key={i} className={`text-[13px] leading-relaxed break-words font-medium ${
+                 log.includes('[LỖI]') ? 'text-red-400' : 
+                 log.includes('[THÀNH CÔNG]') ? 'text-emerald-400' :
+                 log.includes('[HÀNH ĐỘNG]') ? 'text-blue-300' :
+                 log.includes('[AI') ? 'text-purple-400' :
+                 'text-slate-300'
+              }`}>
                 {log}
               </div>
-            );
-          })}
+            ))
+          )}
           <div ref={endLogRef} className="h-4" />
         </div>
       </div>
-
     </div>
   );
 }
