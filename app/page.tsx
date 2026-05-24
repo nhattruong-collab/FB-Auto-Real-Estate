@@ -53,12 +53,14 @@ function getMockSteps(keywords: string, autoCommentEnabled: boolean) {
 
   if (autoCommentEnabled) {
     steps.push(
-      `[HÀNH ĐỘNG] Quét các bài viết trong nhóm để tìm nhu cầu khách hàng...`,
-      `[AI PHÂN TÍCH] Phát hiện một yêu cầu của khách: "Diện tài chính 3.5 tỷ cần mua gấp nhà Tam Bình Thủ Đức, sổ riêng chính chủ..."`,
+      `[HÀNH ĐỘNG] AI phân tích từ khóa lọc nhu cầu (VD: "cần mua", "tìm nhà", "tài chính")...`,
+      `[HÀNH ĐỘNG] Truy cập thanh tìm kiếm bên trong nhóm với từ khóa ngẫu nhiên: "cần mua"`,
+      `[HÀNH ĐỘNG] Quét các bài viết kết quả tìm kiếm mới nhất...`,
+      `[AI PHÂN TÍCH] Phát hiện bài tiềm năng: "Mình tài chính 3.5 tỷ cần mua gấp nhà Tam Bình Thủ Đức, sổ riêng chính chủ..."`,
       `[AI PHÂN TÍCH] Đang đối chiếu với các bđs hiện có trong kho bài viết của bạn...`,
       `[AI PHÂN TÍCH] Tìm thấy bài đăng phù hợp: "Bán nhà Tam Bình giá chỉ 3.2 tỷ hẻm xe hơi, sổ hồng riêng..." (Khớp 95%)`,
       `[HÀNH ĐỘNG] Đang soạn bình luận bám đuôi bằng AI...`,
-      `[THÀNH CÔNG] 🎉 Đã bình luận tư vấn: "Chào bạn, mình thấy trong kho nhà có căn Tam Bình 3.2 tỷ hẻm xe hơi rất hợp nhu cầu. Bạn nhắn Zalo 0901234567 mình gửi sổ hồng và tư vấn nhé!"`
+      `[THÀNH CÔNG] 🎉 Đã bình luận tư vấn: "Chào bạn, bên mình đang có căn nhà Tam Bình 52m2 có sổ riêng chính chủ bán chỉ 3.2 tỷ rất đúng nhu cầu. Ib zalo 090xxxxx mình gửi sđt và sổ hồng xem nhé."`
     );
   }
 
@@ -893,7 +895,7 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 
           <div className="space-y-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 text-left">
             <p className="text-[13px] text-indigo-950 leading-relaxed font-medium">
-              💡 <strong>Cách thức hoạt động:</strong> AI quét các bài dạo trong Group theo từ khóa, lọc ra bài tìm kiếm bđs của khách (Ví dụ: &quot;Cần tìm đất dưới 4 tỷ...&quot;), tự động đối chiếu các bài đăng trong kho của bạn để tìm căn phù hợp nhất, ghép lời tư vấn bám đuổi &amp; đính kèm mẫu Zalo/SĐT.
+              💡 <strong>Cách thức hoạt động:</strong> Theo kịch bản mới, AI tạo ra các từ khóa liên quan như &quot;cần tìm nhà&quot;, &quot;cần mua đất&quot;... và search trực tiếp vào thanh công cụ tìm kiếm bên trong group để nhắm tới các khách hàng có nhu cầu tương tự. Sau đó tự động đối chiếu bài trong kho với bài rà quét được để đưa ra bình luận kèm SĐT.
             </p>
           </div>
 

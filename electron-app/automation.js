@@ -99,7 +99,7 @@ async function actionSearchAndPickGroup(page, keywords, logCallback, forcedKeywo
     await page.goto(randomGroup, { waitUntil: 'networkidle2' }).catch(e=>null);
     logCallback(`[CHỜ] Đợi truy cập vào Group...`);
     await doActionWait(5000, logCallback);
-    return true;
+    return randomGroup;
 }
 
 async function actionPostToCurrentGroup(page, post, logCallback) {
@@ -226,10 +226,18 @@ async function actionPostToCurrentGroup(page, post, logCallback) {
     }
 }
 
-async function runAIAutoCommentMatch(page, posts, commentTemplates, logCallback) {
-  logCallback(`[HÀNH ĐỘNG] Khởi động lọc bài AI Match: Đang rà quét bám đuôi khách trong Group...`);
+async function runAIAutoCommentMatch(page, posts, commentTemplates, logCallback, groupUrl) {
+  logCallback(`[HÀNH ĐỘNG] AI đang lên danh sách nhóm từ khóa hành vi mua (Ví dụ: cần tìm nhà, tìm đất...)`);
+  const intentKeywords = ["cần mua", "tìm mua", "tìm nhà", "cần tìm", "tài chính"];
+  const randomIntent = intentKeywords[Math.floor(Math.random() * intentKeywords.length)];
   
-  // Cuộn trang nhẹ để tải thêm bài viết của nhóm
+  const searchUrl = groupUrl.endsWith('/') ? `${groupUrl}search/?q=${encodeURIComponent(randomIntent)}` : `${groupUrl}/search/?q=${encodeURIComponent(randomIntent)}`;
+  
+  logCallback(`[HÀNH ĐỘNG] Chuyển hướng tìm kiếm trong nhóm với từ khóa: "${randomIntent}"`);
+  await page.goto(searchUrl, { waitUntil: 'networkidle2' }).catch(e=>null);
+  await doActionWait(5000, logCallback);
+  
+  // Cuộn trang nhẹ để tải thêm bài viết kết quả tìm kiếm
   await page.evaluate(() => window.scrollBy(0, 800));
   await doActionWait(3000, logCallback);
   await page.evaluate(() => window.scrollBy(0, 800));
@@ -246,11 +254,11 @@ async function runAIAutoCommentMatch(page, posts, commentTemplates, logCallback)
     });
 
     if (!rawGroupPosts || rawGroupPosts.length === 0) {
-      logCallback(`[HỆ THỐNG] Không quét được bài đăng nào của nhóm trên màn hình ảo. Bỏ qua bình luận AI.`);
+      logCallback(`[HỆ THỐNG] Không tìm thấy bài nào với từ khóa "${randomIntent}". Sẽ chuyển nhóm khác ở chu kỳ sau.`);
       return;
     }
 
-    logCallback(`[AI PHÂN TÍCH] Đã quét được ${rawGroupPosts.length} bài dạo. Đang tải dữ liệu đối sánh bất động sản khớp nhu cầu khách...`);
+    logCallback(`[AI PHÂN TÍCH] Đã quét được ${rawGroupPosts.length} bài đăng. Đang tải dữ liệu đối sánh bất động sản khớp nhu cầu khách...`);
 
     const clientFetch = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
     const res = await clientFetch('http://localhost:3000/api/gemini/match', {
@@ -340,9 +348,9 @@ async function runAutomation(config, logCallback, postCount = 0) {
         for (const keyword of cycleKeywords) {
           if (shouldStop) break;
           logCallback(`[HỆ THỐNG] Chu kỳ này đang chạy từ khóa: "${keyword}"`);
-          await actionSearchAndPickGroup(page, keywords, logCallback, keyword);
-          if (!shouldStop) {
-            await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback);
+          const groupUrl = await actionSearchAndPickGroup(page, keywords, logCallback, keyword);
+          if (!shouldStop && groupUrl) {
+            await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback, groupUrl);
           }
         }
     } else {
