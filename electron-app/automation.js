@@ -343,6 +343,16 @@ async function runAutomation(config, logCallback, postCount = 0) {
 
     const page = await browser.newPage();
     
+    // Tự động bỏ qua hộp thoại xác nhận khi rời trang (ví dụ: "Leave site?", "Changes you made may not be saved")
+    page.on('dialog', async dialog => {
+      try {
+        logCallback(`[HỆ THỐNG] Đã tự động đóng hộp thoại cảnh báo: ${dialog.message()}`);
+        await dialog.accept();
+      } catch (err) {
+        // Bỏ qua lỗi nếu hộp thoại đã tự động đóng
+      }
+    });
+
     if (mode === 'comment') {
         logCallback(`[KỊCH BẢN] Đang chạy kịch bản riêng: Tự Động Bình Luận AI theo tư vấn bám đuổi.`);
         for (const keyword of cycleKeywords) {

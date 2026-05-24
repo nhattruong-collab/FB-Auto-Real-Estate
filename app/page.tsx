@@ -4,8 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, FileText, Sparkles, Send, Play, Square, 
   Trash2, Plus, Image as ImageIcon, CheckCircle2,
-  Clock, Activity, Facebook, Settings, Search, Pencil, MessageSquare,
-  Timer, Target, Zap, AlertCircle, Terminal, History, PauseCircle
+  Clock, Activity, Settings, Search, Pencil, MessageSquare,
+  Timer, Target, Zap, AlertCircle, Terminal, History, PauseCircle,
+  Brain
 } from 'lucide-react';
 
 // --- Types & Globals ---
@@ -362,7 +363,7 @@ export default function RealEstateAutoDashboard() {
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col flex-shrink-0">
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-2 mb-2">
-            <Facebook className="w-8 h-8 text-blue-500" />
+            <Brain className="w-8 h-8 text-blue-500" />
             <h1 className="text-xl font-bold">Auto Post FB AI</h1>
           </div>
           <p className="text-xs text-slate-400">Tự động hóa đăng bài Bất Động Sản</p>
