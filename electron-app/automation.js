@@ -6,6 +6,17 @@ const os = require('os');
 // Create a global state to allow stopping
 let shouldStop = false;
 
+function normalizeKeywords(keywords) {
+  const raw = Array.isArray(keywords) ? keywords.join('\\n') : (keywords || '');
+  const items = String(raw)
+    .split(/[\n,;|]+/g)
+    .map(k => k.trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? [...new Set(items)] : ['Bat dong san'];
+}
+
+
 async function doActionWait(ms, logCallback) {
   let elapsed = 0;
   while (elapsed < ms) {
@@ -51,9 +62,11 @@ async function actionScrollCurrentPage(page, durationSeconds, logCallback) {
    }
 }
 
-async function actionSearchAndPickGroup(page, keywords, logCallback) {
-    logCallback(`[HÀNH ĐỘNG] Mở Facebook - Tìm kiếm group từ khóa: "${keywords}"`);
-    await page.goto(`https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(keywords)}`, { waitUntil: 'networkidle2' }).catch(e=>null);
+async function actionSearchAndPickGroup(page, keywords, logCallback, forcedKeyword = null) {
+    const keywordList = normalizeKeywords(keywords);
+    const pickedKeyword = forcedKeyword || keywordList[Math.floor(Math.random() * keywordList.length)];
+    logCallback(`[HÀNH ĐỘNG] Mở Facebook - Tìm kiếm group từ khóa: "${pickedKeyword}" (${keywordList.length} từ khóa)`);
+    await page.goto(`https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(pickedKeyword)}`, { waitUntil: 'networkidle2' }).catch(e=>null);
 
     logCallback(`[CHỜ] Đợi trang FB load danh sách nhóm...`);
     await doActionWait(4000, logCallback);
@@ -294,6 +307,7 @@ async function runAIAutoCommentMatch(page, posts, commentTemplates, logCallback)
 
 async function runAutomation(config, logCallback, postCount = 0) {
   const { mode, keywords, posts, intervalMinutes, postsBeforeBreak = 10, breakMinutes = 30, scenarios, commentTemplates } = config;
+  const cycleKeywords = normalizeKeywords(keywords);
   shouldStop = false;
   
   logCallback(`[HỆ THỐNG] Chuẩn bị bộ máy tự động hóa chạy nhánh: ${mode === 'comment' ? 'Bình luận AI' : 'Đăng bài'}...`);
@@ -323,38 +337,46 @@ async function runAutomation(config, logCallback, postCount = 0) {
     
     if (mode === 'comment') {
         logCallback(`[KỊCH BẢN] Đang chạy kịch bản riêng: Tự Động Bình Luận AI theo tư vấn bám đuổi.`);
-        await actionSearchAndPickGroup(page, keywords, logCallback);
-        if (!shouldStop) {
-           await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback);
+        for (const keyword of cycleKeywords) {
+          if (shouldStop) break;
+          logCallback(`[HỆ THỐNG] Chu kỳ này đang chạy từ khóa: "${keyword}"`);
+          await actionSearchAndPickGroup(page, keywords, logCallback, keyword);
+          if (!shouldStop) {
+            await runAIAutoCommentMatch(page, posts, commentTemplates, logCallback);
+          }
         }
     } else {
         logCallback(`[KỊCH BẢN] Đang chạy kịch bản: ${currentScenario.name || 'Mặc định'}`);
-        for (let action of currentScenario.actions) {
+        for (const keyword of cycleKeywords) {
            if (shouldStop) break;
-           try {
-             switch (action.type) {
-               case 'scroll_home':
-                 await actionScrollHome(page, action.durationSeconds || 60, logCallback);
-                 break;
-               case 'search_and_pick_group':
-                 await actionSearchAndPickGroup(page, keywords, logCallback); 
-                 break;
-               case 'scroll_current_page':
-                 await actionScrollCurrentPage(page, action.durationSeconds || 30, logCallback);
-                 break;
-               case 'post_to_current_group':
-                 await actionPostToCurrentGroup(page, post, logCallback);
-                 break;
-               default:
-                 logCallback(`[BỎ QUA] Hành động không hỗ trợ: ${action.type}`);
-             }
-           } catch (err) {
-             if (err.message === "STOPPED_BY_USER") {
-                logCallback(`[HỆ THỐNG] Đã nhận lệnh ngắt giữa chừng kịch bản.`);
-                break;
-             } else {
-                logCallback(`[LỖI] Xảy ra lỗi khi chạy hành động ${action.type}: ${err.message}`);
-             }
+           logCallback(`[HỆ THỐNG] Chu kỳ này đang chạy từ khóa: "${keyword}"`);
+           for (let action of currentScenario.actions) {
+              if (shouldStop) break;
+              try {
+                switch (action.type) {
+                  case 'scroll_home':
+                    await actionScrollHome(page, action.durationSeconds || 60, logCallback);
+                    break;
+                  case 'search_and_pick_group':
+                    await actionSearchAndPickGroup(page, keywords, logCallback, keyword);
+                    break;
+                  case 'scroll_current_page':
+                    await actionScrollCurrentPage(page, action.durationSeconds || 30, logCallback);
+                    break;
+                  case 'post_to_current_group':
+                    await actionPostToCurrentGroup(page, post, logCallback);
+                    break;
+                  default:
+                    logCallback(`[BỎ QUA] Hành động không hỗ trợ: ${action.type}`);
+                }
+              } catch (err) {
+                if (err.message === "STOPPED_BY_USER") {
+                   logCallback(`[HỆ THỐNG] Đã nhận lệnh ngắt giữa chừng kịch bản.`);
+                   break;
+                } else {
+                   logCallback(`[LỖI] Xảy ra lỗi khi chạy hành động ${action.type}: ${err.message}`);
+                }
+              }
            }
         }
     }
@@ -404,3 +426,6 @@ module.exports = {
   runAutomation,
   stopAutomation: () => { shouldStop = true; }
 };
+
+
+

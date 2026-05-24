@@ -269,6 +269,13 @@ export default function RealEstateAutoDashboard() {
           </button>
 
           <button 
+            onClick={() => setActiveTab('autocomment')}
+            className={`flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-lg transition-colors whitespace-nowrap ${activeTab === 'autocomment' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="hidden md:inline">Tự động bình luận</span>
+          </button>
+          <button 
             onClick={() => setActiveTab('scenarios')}
             className={`flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-lg transition-colors whitespace-nowrap ${activeTab === 'scenarios' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}
           >
@@ -276,14 +283,10 @@ export default function RealEstateAutoDashboard() {
             <span className="hidden md:inline">Kịch bản tương tác</span>
           </button>
 
-          <button 
-            onClick={() => setActiveTab('autocomment')}
-            className={`flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-lg transition-colors whitespace-nowrap ${activeTab === 'autocomment' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}
-          >
-            <MessageSquare className="w-5 h-5" />
-            <span className="hidden md:inline">Tự động bình luận</span>
-          </button>
         </nav>
+        <div className="px-4 py-3 border-t border-slate-800 text-[11px] text-slate-400">
+          © 2026 Auto Post FB AI · nhattruong.ngn@gmail.com
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -491,9 +494,10 @@ function PostsView({ posts, addPost, deletePost, editPost }: { posts: Post[], ad
   );
 }
 
-function AIGeneratorView({ onSave }: { onSave: (c: string) => void }) {
+function AIGeneratorView({ onSave }: { onSave: (c: string, i?: string[]) => void }) {
   const [prompt, setPrompt] = useState('');
   const [generated, setGenerated] = useState('');
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGenerate = async () => {
@@ -519,11 +523,39 @@ function AIGeneratorView({ onSave }: { onSave: (c: string) => void }) {
     }
   };
 
+  const handleGeneratedImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        const MAX = 600;
+        if (width > height && width > MAX) {
+          height *= MAX / width; width = MAX;
+        } else if (height > MAX) {
+          width *= MAX / height; height = MAX;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        setGeneratedImages([...generatedImages, canvas.toDataURL('image/jpeg', 0.6)]);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const saveToPosts = () => {
     if (generated) {
-      onSave(generated);
+      onSave(generated, generatedImages);
       setGenerated('');
       setPrompt('');
+      setGeneratedImages([]);
       alert("Đã thêm vào kho bài đăng!");
     }
   };
@@ -544,6 +576,24 @@ function AIGeneratorView({ onSave }: { onSave: (c: string) => void }) {
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
           />
+
+          <div className="flex flex-wrap gap-2">
+            {generatedImages.map((img, idx) => (
+              <div key={idx} className="relative w-14 h-14 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img} alt="ai-upload" className="object-cover w-full h-full" />
+                <button onClick={() => setGeneratedImages(generatedImages.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-600"><Trash2 className="w-3 h-3"/></button>
+              </div>
+            ))}
+            {generatedImages.length < 3 && (
+              <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-blue-400 transition-colors">
+                <ImageIcon className="w-4 h-4 text-gray-400 mb-0.5" />
+                <span className="text-[9px] text-gray-500 font-medium">Thêm ảnh</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleGeneratedImageUpload} />
+              </label>
+            )}
+          </div>
+
           <button 
             onClick={handleGenerate} 
             disabled={isLoading || !prompt.trim()}
@@ -561,7 +611,7 @@ function AIGeneratorView({ onSave }: { onSave: (c: string) => void }) {
                 placeholder="Bài viết do AI tạo ra sẽ hiển thị ở đây..."
                 className="w-full h-48 md:flex-1 p-5 outline-none resize-none bg-transparent"
                 value={generated}
-                onChange={e => setGenerated(e.target.value)} // allow light edits before save
+                onChange={e => setGenerated(e.target.value)}
              />
              {!generated && !isLoading && (
                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300 pointer-events-none bg-gray-50/50">
@@ -570,6 +620,7 @@ function AIGeneratorView({ onSave }: { onSave: (c: string) => void }) {
                </div>
              )}
           </div>
+
           {generated && (
             <button onClick={saveToPosts} className="w-full bg-slate-900 text-white px-5 py-3.5 rounded-xl font-medium hover:bg-slate-800 transition-colors flex justify-center items-center gap-2 shadow-md shrink-0">
               <CheckCircle2 className="w-5 h-5" /> Lưu vào Kho bài đăng
@@ -597,7 +648,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
   }, [logs]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 pb-8">
+    <div className="flex flex-col lg:flex-row lg:items-stretch gap-8 pb-8">
       {/* Settings Side */}
       <div className="w-full lg:w-5/12 flex flex-col shrink-0 gap-6 max-w-xl">
         <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm space-y-6 relative overflow-hidden">
@@ -618,27 +669,27 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Từ khóa Group</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Tu khoa Group (nhieu tu khoa)</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input 
-                      type="text" 
+                    <textarea
                       disabled={isRunning}
-                      placeholder="Mua bán nhà đất, Bất động sản..." 
-                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm" 
+                      rows={3}
+                      placeholder="Mua ban nha dat Ha Noi&#10;Cho thue chung cu HCM&#10;Ban dat Binh Duong"
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm resize-none"
                       value={keywords}
                       onChange={e => setKeywords(e.target.value)}
                     />
                   </div>
+                  <p className="text-[11px] text-slate-500 mt-1">Nhập nhiều từ khóa: mỗi dòng 1 từ khóa hoặc ngăn cách bằng dấu phẩy/chấm phẩy.</p>
                 </div>
-
                 <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50 flex flex-col gap-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Kịch bản tương tác</span>
                     <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-indigo-100 text-indigo-600 font-bold shadow-sm">{scenarios.filter((s: any) => s.isActive).length} kịch bản</span>
                   </div>
                   <p className="text-[11px] text-indigo-700/80 leading-relaxed">
-                    Trí tuệ nhân tạo sẽ lấy ngẫu nhiên 1 kịch bản để thực thi mỗi chu kỳ, mô phỏng hành vi người thật.
+                    AI sẽ tự động phân tích và chọn ngẫu nhiên một kịch bản phù hợp để thực thi trong mỗi chu kỳ, giúp mô phỏng hành vi người dùng thật một cách tự nhiên hơn.
                   </p>
                   <button 
                     onClick={() => setActiveTab('scenarios')} 
@@ -726,7 +777,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
       </div>
 
       {/* Terminal logs side */}
-      <div className="w-full lg:flex-1 h-[500px] lg:h-auto bg-[#0a0a0c] rounded-2xl border border-slate-800 flex flex-col shadow-2xl overflow-hidden font-mono shrink-0 lg:shrink ring-1 ring-white/5 relative">
+      <div className="w-full lg:flex-1 h-96 lg:h-[500px] bg-[#0a0a0c] rounded-2xl border border-slate-800 flex flex-col shadow-2xl overflow-hidden font-mono shrink-0 lg:shrink ring-1 ring-white/5 relative">
         {/* Terminal Header */}
         <div className="bg-[#121216] border-b border-slate-800/80 px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -760,7 +811,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
         </div>
 
         {/* Terminal Body */}
-        <div className="p-5 overflow-y-auto flex-1 text-[13px] tracking-tight leading-relaxed selection:bg-blue-500/30">
+        <div className="p-5 overflow-y-auto flex-1 min-h-0 text-[13px] tracking-tight leading-relaxed selection:bg-blue-500/30">
           {logs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-3">
               <History className="w-8 h-8 opacity-20" />
@@ -820,14 +871,14 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 
           <div>
              <label className="block text-sm font-semibold text-gray-800 mb-1.5 flex items-center gap-1.5">
-               Từ khóa Group (Nhóm) quét bài <span className="text-red-500">*</span>
+               Tu khoa Group (Nhom) quet bai <span className="text-red-500">*</span>
              </label>
-             <p className="text-xs text-slate-500 mb-2">Bot sẽ tìm nhóm FB dựa trên từ khóa này để đọc bài khách đăng.</p>
-             <input 
-                type="text" 
+             <p className="text-xs text-slate-500 mb-2">Bot se tim nhom FB theo nhieu tu khoa (moi chu ky chon ngau nhien 1 tu khoa) de doc bai khach dang.</p>
+             <textarea
                 disabled={isRunning}
-                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-gray-50"
-                placeholder="VD: Mua bán nhà đất Hà Nội"
+                rows={3}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-gray-50 resize-none"
+                placeholder="VD: Mua ban nha dat Ha Noi&#10;Cho thue chung cu HCM"
                 value={keywords}
                 onChange={e => setKeywords(e.target.value)}
              />
@@ -865,7 +916,7 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
       </div>
 
       {/* Terminal logs side */}
-      <div className="w-full lg:flex-1 h-96 lg:h-auto bg-[#0a0a0a] rounded-xl border border-gray-800 flex flex-col shadow-2xl overflow-hidden font-mono shrink-0 lg:shrink">
+      <div className="w-full lg:flex-1 h-96 lg:h-[500px] bg-[#0a0a0a] rounded-xl border border-gray-800 flex flex-col shadow-2xl overflow-hidden font-mono shrink-0 lg:shrink">
         <div className="bg-[#1a1a1a] border-b border-gray-800 px-4 py-3 flex items-center gap-2 shrink-0">
           <div className="flex gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500/80" />
