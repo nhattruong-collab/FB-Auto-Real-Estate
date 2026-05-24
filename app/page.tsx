@@ -812,7 +812,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Tu khoa Group (nhieu tu khoa)</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nhập từ khóa group</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                     <textarea
@@ -1042,9 +1042,9 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 
           <div>
              <label className="block text-sm font-semibold text-gray-800 mb-1.5 flex items-center gap-1.5">
-               Tu khoa Group (Nhom) quet bai <span className="text-red-500">*</span>
+               Từ khóa group quét bài <span className="text-red-500">*</span>
              </label>
-             <p className="text-xs text-slate-500 mb-2">Bot se tim nhom FB theo nhieu tu khoa (moi chu ky chon ngau nhien 1 tu khoa) de doc bai khach dang.</p>
+             <p className="text-xs text-slate-500 mb-2">Bot sẽ tìm nhóm FB theo nhiều từ khóa (mỗi chu kỳ chọn ngẫu nhiên 1 từ khóa) để đọc bài khách hàng đăng.</p>
              <textarea
                 disabled={isRunning}
                 rows={3}
