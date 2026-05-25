@@ -1414,7 +1414,7 @@ function DonateView() {
           {/* QR Code container */}
           <div className="bg-white p-3 rounded-2xl border border-rose-200/50 shadow-md transition-all duration-300 hover:shadow-lg mb-4">
             <img 
-              src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MoMo%20Transfer%20Nguyen%20Nhat%20Truong%20https://me.momo.vn/" 
+              src="https://i.postimg.cc/TYghzyqf/1779714823235.png" 
               alt="QR Code Donate NGUYEN NHAT TRUONG" 
               className="w-44 h-44 object-contain rounded-lg"
             />
