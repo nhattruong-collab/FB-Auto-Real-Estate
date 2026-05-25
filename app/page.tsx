@@ -823,13 +823,13 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Tu khoa Group (nhieu tu khoa)</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Từ khóa Group (nhiều từ khóa)</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                     <textarea
                       disabled={isRunning}
                       rows={3}
-                      placeholder="Mua ban nha dat Ha Noi&#10;Cho thue chung cu HCM&#10;Ban dat Binh Duong"
+                      placeholder="Mua bán nhà đất Hà Nội&#10;Cho thuê chung cư HCM&#10;Bán đất Bình Dương"
                       className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60 transition-all outline-none text-sm resize-none"
                       value={keywords}
                       onChange={e => setKeywords(e.target.value)}
@@ -1053,14 +1053,14 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 
           <div>
              <label className="block text-sm font-semibold text-gray-800 mb-1.5 flex items-center gap-1.5">
-               Tu khoa Group (Nhom) quet bai <span className="text-red-500">*</span>
+               Từ khóa Group (Nhóm) quét bài <span className="text-red-500">*</span>
              </label>
-             <p className="text-xs text-slate-500 mb-2">Bot se tim nhom FB theo nhieu tu khoa (moi chu ky chon ngau nhien 1 tu khoa) de doc bai khach dang.</p>
+             <p className="text-xs text-slate-500 mb-2">Bot sẽ tìm nhóm FB theo nhiều từ khóa (mỗi chu kỳ chọn ngẫu nhiên 1 từ khóa) để đọc bài khách đăng.</p>
              <textarea
                 disabled={isRunning}
                 rows={3}
                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-gray-50 resize-none"
-                placeholder="VD: Mua ban nha dat Ha Noi&#10;Cho thue chung cu HCM"
+                placeholder="VD: Mua bán nhà đất Hà Nội&#10;Cho thuê chung cư HCM"
                 value={keywords}
                 onChange={e => setKeywords(e.target.value)}
              />
@@ -1437,6 +1437,19 @@ function DonateView() {
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
               >
                 {copiedField === 'memo' ? 'Đã copy' : 'Copy'}
+              </button>
+            </div>
+
+            <div className="bg-white px-4 py-2.5 rounded-xl border border-slate-100 flex justify-between items-center shadow-xs">
+              <div>
+                <span className="text-[10px] text-zinc-500 font-semibold uppercase block">Zalo Hỗ trợ</span>
+                <span className="text-xs font-bold text-blue-600 block">038.618.4264</span>
+              </div>
+              <button 
+                onClick={() => handleCopy('0386184264', 'zalo')}
+                className="px-3 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-blue-600 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              >
+                {copiedField === 'zalo' ? 'Đã copy' : 'Copy'}
               </button>
             </div>
           </div>
