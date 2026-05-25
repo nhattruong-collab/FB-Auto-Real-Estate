@@ -6,7 +6,7 @@ import {
   Trash2, Plus, Image as ImageIcon, CheckCircle2,
   Clock, Activity, Settings, Search, Pencil, MessageSquare,
   Timer, Target, Zap, AlertCircle, Terminal, History, PauseCircle,
-  Brain
+  Brain, Heart, QrCode, Coffee, Server, ExternalLink
 } from 'lucide-react';
 
 // --- Types & Globals ---
@@ -76,7 +76,7 @@ function getMockSteps(keywords: string, autoCommentEnabled: boolean) {
 }
 
 export default function RealEstateAutoDashboard() {
-  const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation' | 'scenarios' | 'autocomment'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'ai' | 'automation' | 'scenarios' | 'autocomment' | 'donate'>('posts');
   
   // App State - Post
   const [posts, setPosts] = useState<Post[]>([]);
@@ -414,6 +414,14 @@ export default function RealEstateAutoDashboard() {
             <span className="hidden md:inline">Kịch bản tương tác</span>
           </button>
 
+          <button 
+            onClick={() => setActiveTab('donate')}
+            className={`flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-lg transition-colors whitespace-nowrap ${activeTab === 'donate' ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-slate-800 hover:text-rose-300'}`}
+          >
+            <Heart className="w-5 h-5 fill-current" />
+            <span className="hidden md:inline font-semibold">Ủng hộ tác giả</span>
+          </button>
+
         </nav>
         <div className="px-4 py-3 border-t border-slate-800 text-[11px] text-slate-400">
           © 2026 Auto Post FB AI · nhattruong.ngn@gmail.com
@@ -468,6 +476,9 @@ export default function RealEstateAutoDashboard() {
               setIsRunning={setIsCommentRunning}
               logs={commentLogs}
             />
+          )}
+          {activeTab === 'donate' && (
+            <DonateView />
           )}
         </div>
       </main>
@@ -812,7 +823,7 @@ function AutomationView({ posts, keywords, setKeywords, intervalMinutes, setInte
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nhập từ khóa group</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Tu khoa Group (nhieu tu khoa)</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                     <textarea
@@ -1042,9 +1053,9 @@ function AutoCommentView({ keywords, setKeywords, posts, commentTemplates, setCo
 
           <div>
              <label className="block text-sm font-semibold text-gray-800 mb-1.5 flex items-center gap-1.5">
-               Từ khóa group quét bài <span className="text-red-500">*</span>
+               Tu khoa Group (Nhom) quet bai <span className="text-red-500">*</span>
              </label>
-             <p className="text-xs text-slate-500 mb-2">Bot sẽ tìm nhóm FB theo nhiều từ khóa (mỗi chu kỳ chọn ngẫu nhiên 1 từ khóa) để đọc bài khách hàng đăng.</p>
+             <p className="text-xs text-slate-500 mb-2">Bot se tim nhom FB theo nhieu tu khoa (moi chu ky chon ngau nhien 1 tu khoa) de doc bai khach dang.</p>
              <textarea
                 disabled={isRunning}
                 rows={3}
@@ -1363,6 +1374,168 @@ function ScenariosView({ scenarios, setScenarios, isRunning }: { scenarios: Scen
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function DonateView() {
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, fieldName: string) => {
+    if (typeof window !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2000);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm max-w-4xl mx-auto">
+      {/* Header section */}
+      <div className="mb-6 border-b border-gray-100 pb-5 text-center md:text-left">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center justify-center md:justify-start gap-2">
+          <Heart className="w-6 h-6 text-rose-500 fill-current animate-pulse" /> Đồng hành & Ủng hộ Tác giả
+        </h2>
+        <p className="text-gray-600 text-sm mt-2 leading-relaxed">
+          Ủng hộ ít nhiều không quan trọng, sự hỗ trợ của bạn là động lực to lớn giúp tác giả liên tục bảo trì, cập nhật kịch bản mới và bổ sung thêm nhiều sức mạnh bảo mật chống checkpoint cho phần mềm vận hành tối ưu nhất. Có 2 cách tiện ích để đồng hành cùng tác giả:
+        </p>
+      </div>
+
+      {/* Main Options Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+        
+        {/* Left column: Way 1 - QR code first */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="bg-gradient-to-br from-rose-50/70 to-amber-50/50 p-5 rounded-2xl border border-rose-100/60 shadow-sm flex flex-col items-center h-full justify-between">
+            <div className="w-full flex flex-col items-center">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white font-bold text-xs shrink-0">1</span>
+                <span className="text-xs font-bold text-rose-900 uppercase tracking-wider">Cách 1: Quét mã QR ủng hộ trực tiếp</span>
+              </div>
+              
+              {/* QR Code container */}
+              <div className="bg-white p-3 rounded-2xl border border-rose-200/50 shadow-md transition-all duration-300 hover:shadow-lg mb-4">
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MoMo%20Transfer%20Nguyen%20Nhat%20Truong%20https://me.momo.vn/" 
+                  alt="QR Code Donate NGUYEN NHAT TRUONG" 
+                  className="w-44 h-44 object-contain rounded-lg"
+                />
+              </div>
+
+              {/* Tài khoản thông tin */}
+              <div className="w-full space-y-2">
+                <div className="bg-white px-3 py-2 rounded-xl border border-slate-100 flex justify-between items-center shadow-xs">
+                  <div>
+                    <span className="text-[9px] text-slate-400 block font-semibold uppercase">Tên TK</span>
+                    <span className="text-xs font-bold text-slate-800 uppercase">NGUYỄN NHẬT TRƯỜNG</span>
+                  </div>
+                  <button 
+                    onClick={() => handleCopy('NGUYỄN NHẬT TRƯỜNG', 'name')}
+                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    {copiedField === 'name' ? 'Đã sao chép' : 'Copy'}
+                  </button>
+                </div>
+
+                <div className="bg-white px-3 py-2 rounded-xl border border-slate-100 flex justify-between items-center shadow-xs">
+                  <div>
+                    <span className="text-[9px] text-zinc-400 block font-semibold uppercase">Cú pháp chuyển khoản</span>
+                    <span className="text-[11px] font-bold text-rose-600">Ung ho AI [SĐT cua ban]</span>
+                  </div>
+                  <button 
+                    onClick={() => handleCopy('Ung ho AI ', 'memo')}
+                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    {copiedField === 'memo' ? 'Đã copy' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-500 mt-3 text-center leading-relaxed">
+              💡 Ghi kèm SĐT của bạn trong nội dung chuyển khoản để tác giả chủ động kết bạn, trợ giúp cài đặt trọn vẹn và add vào nhóm hỗ trợ kỹ thuật nhé!
+            </p>
+          </div>
+        </div>
+
+        {/* Right column: Way 2 - VPS Referral */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-5 rounded-2xl border border-indigo-100/60 shadow-sm flex flex-col justify-between h-full">
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs shrink-0">2</span>
+                <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Cách 2: Đăng ký VPS nuôi nick 24/7</span>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                Để phục vụ việc treo tiến trình đăng bài, tự động quét nhóm và bình luận AI hoạt động độc lập cả ngày lẫn đêm mà không cần bật máy tính cá nhân 24/24, bạn hãy trang bị máy chủ ảo (VPS) hiệu năng cao ổn định.
+              </p>
+
+              <div className="bg-white p-4 rounded-xl border border-indigo-100/40 shadow-xs mb-4">
+                <div className="flex items-start gap-2.5">
+                  <Server className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-slate-800">Ủng hộ gián tiếp hoàn hảo:</span>
+                    <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+                      Đăng ký mua VPS qua link giới thiệu dưới đây là một hành động tuyệt vời. Nhà cung cấp VPS chất lượng cao sẽ trích lại một phần doanh thu nhỏ ủng hộ tác giả duy trì phát triển phần mềm mà bạn tuyệt đối không bị mất thêm bất kỳ chi phí nào!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <a 
+                href="https://abcm.com" 
+                target="_blank" 
+                rel="noreferrer"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+              >
+                <Server className="w-4 h-4" />
+                Đăng ký VPS Treo Tool 24/7 (abcm.com)
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <span className="text-[10px] text-slate-400 block text-center mt-2 font-medium italic">
+                * Vừa có VPS chạy tool siêu tốc vừa ủng hộ tác giả phát triển phần mềm!
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Bottom Technical Support Privileges */}
+      <div className="bg-slate-50 rounded-2xl border border-slate-200/50 p-5 space-y-4 shadow-xs">
+        <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 pb-2 border-b border-slate-200/60">
+          <Coffee className="w-5 h-5 text-indigo-600" /> Quyền lợi hỗ trợ khi cài đặt & vận hành:
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
+          <div className="space-y-1 bg-white p-3.5 rounded-xl border border-slate-100 shadow-2xs">
+            <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs mb-2">1</div>
+            <h4 className="font-semibold text-xs text-slate-800">Support Cài đặt 1-1</h4>
+            <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+              Được trực tiếp tác giả UltraViewer/TeamViewer hướng dẫn thiết lập Chrome-port, cấu hình Puppeteer tự động chạy mượt mà ngay trên PC hoặc VPS riêng của bạn.
+            </p>
+          </div>
+
+          <div className="space-y-1 bg-white p-3.5 rounded-xl border border-slate-100 shadow-2xs">
+            <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs mb-2">2</div>
+            <h4 className="font-semibold text-xs text-slate-800">Tư vấn Nuôi nick Không lo Spam</h4>
+            <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+              Chia sẻ kinh nghiệm căn thời gian giãn cách tối ưu, đa dạng hóa kịch bản tương tác và bình luận AI khéo léo để tiếp cận chuẩn khách hàng, tránh tối đa khóa nick.
+            </p>
+          </div>
+
+          <div className="space-y-1 bg-white p-3.5 rounded-xl border border-slate-100 shadow-2xs">
+            <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs mb-2">3</div>
+            <h4 className="font-semibold text-xs text-slate-800">Nhóm Support Ưu Tiên & Fix Giao Diện</h4>
+            <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+              Khách hàng ủng hộ được ưu tiên tham gia group trao đổi kỹ thuật, gửi bản cập nhật sửa lỗi/bổ sung tính năng mới nhất mỗi khi Facebook thay đổi thuật toán.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

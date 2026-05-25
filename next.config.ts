@@ -9,10 +9,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   // Allow access to remote image placeholder.
-  devIndicators: {
-    appIsrStatus: false,
-    buildActivity: false,
-  },
   images: {
     remotePatterns: [
       {
