@@ -10,7 +10,7 @@ console.log("🚀 Bắt đầu quá trình build App...");
 
 // 1. Chạy Next.js Build
 console.log("\n[1/5] Đang build Frontend Next.js...");
-execSync("npx -y cross-env NODE_ENV=production npx next build", { stdio: 'inherit', cwd: __dirname });
+execSync("npm run build", { stdio: 'inherit', cwd: __dirname });
 
 const standaloneDir = path.join(__dirname, '.next', 'standalone');
 
@@ -42,14 +42,15 @@ const ebConfig = {
   appId: "com.autofb.app",
   productName: "Auto FB AI",
   directories: {
-    app: ".next/standalone",
-    output: "dist-exe"
+    app: ".",
+    output: "../../dist-exe"
   },
   files: [
     "**/*"
   ],
-  npmRebuild: false,
-  asar: false,
+  extraMetadata: {
+    main: "electron-app/main.js"
+  },
   win: {
     target: "nsis",
     icon: "public/icon.png"
@@ -59,24 +60,19 @@ const ebConfig = {
     icon: "public/icon.png"
   }
 };
-// Lưu cấu hình vào thư mục root thay vì standalone
-fs.writeFileSync(path.join(__dirname, 'electron-builder.json'), JSON.stringify(ebConfig, null, 2));
+fs.writeFileSync(path.join(standaloneDir, 'electron-builder.json'), JSON.stringify(ebConfig, null, 2));
 
-// Cập nhật package.json của standalone
-const pkgPath = path.join(standaloneDir, 'package.json');
-if (fs.existsSync(pkgPath)) {
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-  pkg.main = "electron-app/main.js";
-  // Xóa dependencies để tránh electron-builder tự quét lỗi các module bị thiếu (Next.js đã tối ưu trước đó)
-  pkg.dependencies = {};
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-}
+// Install npm packages (if needed) for standalone
+console.log("  -> Cài đặt dependency cho thư mục đóng gói...");
+// It's mostly pre-installed in root, standalone uses relative node_modules from its bundle.
+// electron-builder uses standard node_modules if present. Next standalone doesn't include devDependencies.
 
 // 5. Build ra mã nhị phân EXE
 console.log("\n[5/5] Đang đóng gói thành file .exe hoàn chỉnh (quá trình này có thể mất vài phút)...");
 try {
-  // Thay đổi: chạy cờ --no-install và không trỏ --projectDir do đã ghi app dir trong config
-  execSync("npx --no-install electron-builder build --win -c electron-builder.json", { stdio: 'inherit', cwd: __dirname });
+  // Use npx electron-builder from the standalone folder, but it needs electron dependencies
+  // Actually, we can run electron-builder from the root folder, targeting the standalone folder!
+  execSync("npx electron-builder build --win --projectDir .next/standalone -c electron-builder.json", { stdio: 'inherit', cwd: __dirname });
   
   console.log("\n🎉 HOÀN TẤT! File cài đặt của bạn nằm ở thư mục: dist-exe/");
 } catch (e) {
